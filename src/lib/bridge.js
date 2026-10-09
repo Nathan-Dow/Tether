@@ -23,6 +23,10 @@ const fallback = {
   onAiHealth: unsub,
   onVerdict: unsub,
   onEvaluation: unsub,
+  getDayReport: async () => null,
+  getLastSession: async () => null,
+  clearHistory: async () => true,
+  onSessionFinished: unsub,
 };
 
 export const bridge = window.tether ?? fallback;

@@ -2,10 +2,22 @@
 // Owns the frameless island window, click-through, dragging, global shortcuts,
 // the foreground-window context daemon and a network-egress counter.
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain, globalShortcut, screen, session } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  globalShortcut,
+  powerMonitor,
+  screen,
+  session,
+} = require('electron');
 const { WindowsProbe } = require('./context/windowsProbe.cjs');
 const { ContextDaemon } = require('./context/daemon.cjs');
 const { Evaluator } = require('./ai/evaluator.cjs');
+const { SessionStore } = require('./analytics/store.cjs');
+const { SessionRecorder } = require('./analytics/recorder.cjs');
+const { sessionReport, dayReport } = require('./analytics/metrics.cjs');
+const { demoSessions } = require('./analytics/demoDay.cjs');
 
 const isMac = process.platform === 'darwin';
 const isDev = !app.isPackaged && process.env.TETHER_PROD !== '1';
@@ -174,8 +186,9 @@ function startContextDaemon() {
     selfPid: process.pid,
   });
 
-  // Only focus changes go to the UI; Phase 3 pulls getState() on its own tick.
+  // Every sample feeds the session recorder; only focus changes go to the UI.
   daemon.on('update', (state, changed) => {
+    recorder?.onContext(state.current);
     if (changed) win?.webContents.send('context:update', state);
   });
   daemon.on('probe-error', (err, failures) => {
@@ -199,17 +212,76 @@ function startEvaluator() {
     daemon,
     intervalMs: Number(process.env.TETHER_EVAL_MS) || 8000,
   });
-  evaluator.on('verdict', (entry) => win?.webContents.send('eval:verdict', entry));
-  evaluator.on('drift', (entry) => win?.webContents.send('eval:result', entry));
+  evaluator.on('verdict', (entry) => {
+    recorder?.onVerdict(entry);
+    win?.webContents.send('eval:verdict', entry);
+  });
+  evaluator.on('drift', (entry) => {
+    recorder?.onAlert(entry);
+    win?.webContents.send('eval:result', entry);
+  });
   evaluator.on('health', (health) => win?.webContents.send('ai:health', health));
   evaluator.on('model-error', (err) => console.warn('[ai] model call failed:', err.message));
   evaluator.start();
 }
 
-ipcMain.on('sprint:set', (_e, sprint) => evaluator?.setSprint(sprint));
-ipcMain.on('eval:allow', (_e, key) => evaluator?.allow(key));
+ipcMain.on('sprint:set', (_e, sprint) => {
+  if (sprint) {
+    recorder?.start(sprint);
+    const current = daemon?.getState().current;
+    if (current) recorder?.onContext(current);
+  } else {
+    const finished = recorder?.finish();
+    if (finished) {
+      lastReport = sessionReport(finished);
+      win?.webContents.send('session:finished', lastReport);
+    }
+  }
+  evaluator?.setSprint(sprint);
+});
+
+ipcMain.on('eval:allow', (_e, key) => {
+  evaluator?.allow(key);
+  recorder?.onAllow(key);
+});
 ipcMain.handle('ai:health', () => evaluator?.health ?? null);
 ipcMain.handle('eval:log', () => evaluator?.log ?? []);
+
+// ---------------------------------------------------------------------------
+// Session history + analytics (all local, in Tether's app-data folder)
+// ---------------------------------------------------------------------------
+
+let store = null;
+let recorder = null;
+let lastReport = null;
+const HISTORY_DAYS = 30;
+
+function startRecorder() {
+  store = new SessionStore(path.join(app.getPath('userData'), 'sessions'));
+  recorder = new SessionRecorder({
+    store,
+    getIdleSeconds: () => powerMonitor.getSystemIdleTime(),
+  });
+}
+
+// Saved sessions plus the sprint in progress (as of now).
+function allSessions() {
+  const since = Date.now() - HISTORY_DAYS * 24 * 60 * 60_000;
+  const saved = store ? store.list({ since }) : [];
+  const live = recorder?.session;
+  if (!live) return saved;
+  return [...saved.filter((s) => s.id !== live.id), { ...live, endedAt: Date.now() }];
+}
+
+ipcMain.handle('analytics:day', (_e, { demo = false } = {}) =>
+  demo ? dayReport(demoSessions(), { day: Date.now() }) : dayReport(allSessions()),
+);
+ipcMain.handle('analytics:last-session', () => lastReport);
+ipcMain.handle('analytics:clear', () => {
+  store?.clear();
+  lastReport = null;
+  return true;
+});
 
 // ---------------------------------------------------------------------------
 // Network egress counter. Anything that isn't loopback (Vite dev server,
@@ -258,6 +330,7 @@ if (!app.requestSingleInstanceLock()) {
     if (isMac) app.dock?.hide();
     watchEgress();
     createWindow();
+    startRecorder();
     startContextDaemon();
     startEvaluator();
 
@@ -272,6 +345,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('will-quit', () => {
     stopDrag();
+    recorder?.finish(); // don't lose a sprint that's still running
     daemon?.stop();
     evaluator?.stop();
     globalShortcut.unregisterAll();

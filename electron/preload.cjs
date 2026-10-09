@@ -37,4 +37,10 @@ contextBridge.exposeInMainWorld('tether', {
   onAiHealth: (cb) => subscribe('ai:health', cb),
   onVerdict: (cb) => subscribe('eval:verdict', cb), // every evaluation
   onEvaluation: (cb) => subscribe('eval:result', cb), // drift alerts only
+
+  // Session analytics
+  getDayReport: (opts) => ipcRenderer.invoke('analytics:day', opts),
+  getLastSession: () => ipcRenderer.invoke('analytics:last-session'),
+  clearHistory: () => ipcRenderer.invoke('analytics:clear'),
+  onSessionFinished: (cb) => subscribe('session:finished', cb),
 });
