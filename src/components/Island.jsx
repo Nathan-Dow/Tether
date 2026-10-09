@@ -8,13 +8,14 @@ export const SPRING = { type: 'spring', stiffness: 380, damping: 32 };
 
 const ISLAND_W = 420;
 const COLLAPSED_H = 54;
-const EXPANDED_H = 180;
+const EXPANDED_H = { input: 180, drift: 180, summary: 196 };
 
 // Per-mode accent.
 const THEMES = {
   idle: { border: 'rgba(255,255,255,0.10)', glow: 'rgba(0,0,0,0)', pulse: false },
   flow: { border: 'rgba(255,255,255,0.10)', glow: 'rgba(0,0,0,0)', pulse: false },
   input: { border: 'rgba(255,255,255,0.14)', glow: 'rgba(0,0,0,0)', pulse: false },
+  summary: { border: 'rgba(52,211,153,0.30)', glow: 'rgba(52,211,153,0.18)', pulse: false },
   drift: { border: 'rgba(251,191,36,0.45)', glow: 'rgba(251,191,36,0.38)', pulse: true },
 };
 
@@ -40,7 +41,7 @@ export default function Island({ mode, children }) {
           y: 0,
           opacity: 1,
           width: ISLAND_W,
-          height: expanded ? EXPANDED_H : COLLAPSED_H,
+          height: expanded ? EXPANDED_H[mode] : COLLAPSED_H,
           borderRadius: expanded ? 30 : 27,
         }}
         transition={SPRING}

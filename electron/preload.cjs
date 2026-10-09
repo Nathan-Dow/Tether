@@ -43,4 +43,8 @@ contextBridge.exposeInMainWorld('tether', {
   getLastSession: () => ipcRenderer.invoke('analytics:last-session'),
   clearHistory: () => ipcRenderer.invoke('analytics:clear'),
   onSessionFinished: (cb) => subscribe('session:finished', cb),
+
+  // Calendar export for a finished sprint
+  openGoogleCalendar: (id) => ipcRenderer.invoke('calendar:google', id),
+  saveIcs: (id) => ipcRenderer.invoke('calendar:ics', id),
 });

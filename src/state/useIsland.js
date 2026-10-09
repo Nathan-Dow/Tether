@@ -5,12 +5,14 @@ import { useReducer } from 'react';
 //   input   — expanded goal/duration entry (Cmd/Ctrl+K)
 //   flow    — sprint running, collapsed with countdown
 //   drift   — expanded amber warning
-export const EXPANDED_MODES = new Set(['input', 'drift']);
+//   summary — expanded post-sprint breakdown + calendar export
+export const EXPANDED_MODES = new Set(['input', 'drift', 'summary']);
 
 const initialState = {
   mode: 'idle',
   sprint: null, // { goal, durationMin, startedAt }
   drift: null, // { app, confidence, nudge, reason, key, source, latencyMs, driftType }
+  summary: null, // sessionReport() of the sprint that just finished
 };
 
 function restingMode(state) {
@@ -56,6 +58,13 @@ function reducer(state, action) {
         return { ...state, mode: restingMode(state), drift: null };
       }
       return state;
+
+    case 'SHOW_SUMMARY':
+      // The sprint is over (time's up or ended early); its report replaces it.
+      return { ...state, mode: 'summary', sprint: null, drift: null, summary: action.report };
+
+    case 'CLOSE_SUMMARY':
+      return { ...state, mode: restingMode(state), summary: null };
 
     case 'DISMISS_DRIFT':
       return { ...state, mode: restingMode(state), drift: null };

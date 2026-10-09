@@ -5,12 +5,15 @@ const path = require('node:path');
 const {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   globalShortcut,
   powerMonitor,
   screen,
   session,
+  shell,
 } = require('electron');
+const fs = require('node:fs');
 const { WindowsProbe } = require('./context/windowsProbe.cjs');
 const { ContextDaemon } = require('./context/daemon.cjs');
 const { Evaluator } = require('./ai/evaluator.cjs');
@@ -18,6 +21,7 @@ const { SessionStore } = require('./analytics/store.cjs');
 const { SessionRecorder } = require('./analytics/recorder.cjs');
 const { sessionReport, dayReport } = require('./analytics/metrics.cjs');
 const { demoSessions } = require('./analytics/demoDay.cjs');
+const { googleCalendarUrl, icsFile, icsFileName } = require('./analytics/calendar.cjs');
 
 const isMac = process.platform === 'darwin';
 const isDev = !app.isPackaged && process.env.TETHER_PROD !== '1';
@@ -82,11 +86,23 @@ function createWindow() {
   // renderer flips this off while the cursor is over the island itself.
   win.setIgnoreMouseEvents(true, { forward: true });
 
-  if (isDev) {
-    win.loadURL(DEV_URL);
-  } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
-  }
+  const load = () =>
+    isDev ? win.loadURL(DEV_URL) : win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+
+  // A failed load would leave an invisible, empty island. Retry a few times:
+  // transient errors (dev server still starting, ERR_NO_BUFFER_SPACE) happen.
+  let retries = 0;
+  win.webContents.on('did-fail-load', (_e, code, desc, _url, isMainFrame) => {
+    if (!isMainFrame || code === -3 /* ERR_ABORTED */ || retries >= 10) return;
+    retries += 1;
+    console.warn(`[window] load failed (${desc}), retry ${retries}/10`);
+    setTimeout(() => win && load(), 1000);
+  });
+  win.webContents.on('did-finish-load', () => {
+    retries = 0;
+  });
+
+  load();
 
   win.once('ready-to-show', () => win.showInactive());
   win.on('closed', () => {
@@ -277,6 +293,35 @@ ipcMain.handle('analytics:day', (_e, { demo = false } = {}) =>
   demo ? dayReport(demoSessions(), { day: Date.now() }) : dayReport(allSessions()),
 );
 ipcMain.handle('analytics:last-session', () => lastReport);
+
+// Any session by id: the one just finished, a saved one, or a demo one.
+function findReport(id) {
+  if (lastReport?.id === id) return lastReport;
+  const saved = store?.load(id) ?? demoSessions().find((s) => s.id === id);
+  return saved ? sessionReport(saved) : null;
+}
+
+// Opening the template is the one deliberate, user-initiated trip to the
+// internet: the user's own browser, with the summary they chose to share.
+ipcMain.handle('calendar:google', async (_e, id) => {
+  const report = findReport(id);
+  if (!report) return { ok: false };
+  await shell.openExternal(googleCalendarUrl(report));
+  return { ok: true };
+});
+
+ipcMain.handle('calendar:ics', async (_e, id) => {
+  const report = findReport(id);
+  if (!report) return { ok: false };
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: 'Save sprint to calendar',
+    defaultPath: path.join(app.getPath('downloads'), icsFileName(report)),
+    filters: [{ name: 'Calendar event', extensions: ['ics'] }],
+  });
+  if (canceled || !filePath) return { ok: false, canceled: true };
+  fs.writeFileSync(filePath, icsFile(report));
+  return { ok: true, filePath };
+});
 ipcMain.handle('analytics:clear', () => {
   store?.clear();
   lastReport = null;

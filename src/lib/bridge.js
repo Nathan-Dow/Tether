@@ -27,6 +27,8 @@ const fallback = {
   getLastSession: async () => null,
   clearHistory: async () => true,
   onSessionFinished: unsub,
+  openGoogleCalendar: async () => ({ ok: false }),
+  saveIcs: async () => ({ ok: false }),
 };
 
 export const bridge = window.tether ?? fallback;
