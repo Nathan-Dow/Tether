@@ -13,7 +13,8 @@
     "probe": "node scripts/probe.cjs",
     "eval": "node scripts/eval.cjs",
     "test": "node --test test/*.test.cjs",
-    "postinstall": "node node_modules/electron/install.js"
+    "postinstall": "node node_modules/electron/install.js",
+    "setup:voice": "node scripts/setup-voice.cjs"
   },
   "dependencies": {
     "framer-motion": "^14.0.0",

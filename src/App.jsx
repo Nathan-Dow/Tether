@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { bridge } from './lib/bridge.js';
 import { useCountdown } from './hooks/useCountdown.js';
+import { useVoice } from './hooks/useVoice.js';
+import { playDrift, playGoalSet } from './lib/sounds.js';
 import { EXPANDED_MODES, useIsland } from './state/useIsland.js';
 import Island from './components/Island.jsx';
 import CollapsedBar from './components/CollapsedBar.jsx';
@@ -9,6 +11,7 @@ import GoalInput from './components/GoalInput.jsx';
 import DriftCard from './components/DriftCard.jsx';
 import SummaryCard from './components/SummaryCard.jsx';
 import ResumeCard from './components/ResumeCard.jsx';
+import VoiceCard from './components/VoiceCard.jsx';
 
 // Cross-fade between island contents while the shell springs to its new size.
 function View({ children }) {
@@ -26,10 +29,36 @@ function View({ children }) {
 }
 
 export default function App() {
-  const [{ mode, sprint, drift, summary, resume }, dispatch] = useIsland();
+  const [{ mode, sprint, drift, summary, resume, prefill }, dispatch] = useIsland();
   const countdown = useCountdown(sprint);
   const [context, setContext] = useState(null);
   const [aiHealth, setAiHealth] = useState(null);
+
+  // Voice goals: the transcript and parsed sprint land in the goal card.
+  const voice = useVoice({ onResult: (intent) => dispatch({ type: 'VOICE_RESULT', intent }) });
+  const startVoice = (opts) => {
+    dispatch({ type: 'VOICE_START' });
+    voice.start(opts);
+  };
+  const cancelVoice = () => {
+    voice.cancel();
+    dispatch({ type: 'VOICE_CANCEL' });
+  };
+  const toggleVoice = () => {
+    if (voice.phase === 'listening') voice.stop();
+    else if (voice.phase !== 'thinking') startVoice();
+  };
+  const voiceRef = useRef(toggleVoice);
+  voiceRef.current = toggleVoice;
+
+  // Audio cues: a chime when a sprint starts, a low tone when you drift.
+  const startedAt = sprint?.startedAt;
+  useEffect(() => {
+    if (startedAt) playGoalSet();
+  }, [startedAt]);
+  useEffect(() => {
+    if (drift) playDrift();
+  }, [drift]);
 
   // Foreground app from the OS context daemon (main process).
   useEffect(() => {
@@ -42,6 +71,7 @@ export default function App() {
     () =>
       bridge.onShortcut((name) => {
         if (name === 'open-input') dispatch({ type: 'OPEN_INPUT' });
+        if (name === 'voice') voiceRef.current();
       }),
     [dispatch],
   );
@@ -132,26 +162,36 @@ export default function App() {
         else if (mode === 'drift') dispatch({ type: 'DISMISS_DRIFT' });
         else if (mode === 'summary') dispatch({ type: 'CLOSE_SUMMARY' });
         else if (mode === 'resume') dispatch({ type: 'CLOSE_RESUME' });
+        else if (mode === 'voice') cancelVoice();
       } else if (key === 'f12') {
         bridge.toggleDevTools();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mode, sprint, countdown.label, dispatch]);
+  }, [mode, sprint, countdown.label, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Island mode={mode}>
       <AnimatePresence initial={false}>
         {mode === 'input' && (
-          <View key="input">
+          <View key={`input-${prefill?.id ?? 'typed'}`}>
             <GoalInput
+              key={prefill?.id ?? 'typed'}
               sprint={sprint}
               aiHealth={aiHealth}
+              prefill={prefill}
+              onVoice={() => startVoice({ hold: true })}
               onStart={(goal, durationMin) => dispatch({ type: 'START_SPRINT', goal, durationMin })}
               onCancel={() => dispatch({ type: 'CANCEL_INPUT' })}
               onEnd={() => dispatch({ type: 'END_SPRINT' })}
             />
+          </View>
+        )}
+
+        {mode === 'voice' && (
+          <View key="voice">
+            <VoiceCard voice={voice} onClose={cancelVoice} onRetry={() => voice.start()} />
           </View>
         )}
 

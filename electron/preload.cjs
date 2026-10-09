@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('tether', {
   getNetStats: () => ipcRenderer.invoke('net:get'),
   onNetStats: (cb) => subscribe('net:stats', cb),
 
-  // Global shortcut events from main ('open-input')
+  // Global shortcut events from main ('open-input' | 'voice')
   onShortcut: (cb) => subscribe('shortcut', cb),
 
   // Foreground-window context (fires on focus change)
@@ -54,6 +54,10 @@ contextBridge.exposeInMainWorld('tether', {
   onResume: (cb) => subscribe('resume:show', cb),
   previewResume: () => ipcRenderer.send('resume:preview'),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
+
+  // Voice goal input: Float32Array of 16 kHz mono samples -> { goal, durationMin, ... }
+  getVoiceStatus: () => ipcRenderer.invoke('voice:status'),
+  transcribe: (samples) => ipcRenderer.invoke('voice:transcribe', samples),
 
   // Calendar export for a finished sprint
   openGoogleCalendar: (id) => ipcRenderer.invoke('calendar:google', id),

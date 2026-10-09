@@ -8,7 +8,7 @@ export const SPRING = { type: 'spring', stiffness: 380, damping: 32 };
 
 const ISLAND_W = 420;
 const COLLAPSED_H = 54;
-const EXPANDED_H = { input: 180, drift: 180, summary: 196, resume: 196 };
+const EXPANDED_H = { input: 180, drift: 180, summary: 196, resume: 196, voice: 180 };
 
 // Per-mode accent.
 const THEMES = {
@@ -17,6 +17,7 @@ const THEMES = {
   input: { border: 'rgba(255,255,255,0.14)', glow: 'rgba(0,0,0,0)', pulse: false },
   summary: { border: 'rgba(52,211,153,0.30)', glow: 'rgba(52,211,153,0.18)', pulse: false },
   resume: { border: 'rgba(56,189,248,0.32)', glow: 'rgba(56,189,248,0.18)', pulse: false },
+  voice: { border: 'rgba(56,189,248,0.40)', glow: 'rgba(56,189,248,0.28)', pulse: true },
   drift: { border: 'rgba(251,191,36,0.45)', glow: 'rgba(251,191,36,0.38)', pulse: true },
 };
 

@@ -26,6 +26,8 @@ const { demoSessions } = require('./analytics/demoDay.cjs');
 const { googleCalendarUrl, icsFile, icsFileName } = require('./analytics/calendar.cjs');
 const { ResumeTracker, buildSnapshot, resumePrompt, writeNote } = require('./analytics/resume.cjs');
 const ollama = require('./ai/ollama.cjs');
+const stt = require('./voice/stt.cjs');
+const { extractIntent } = require('./voice/intent.cjs');
 
 const isMac = process.platform === 'darwin';
 const isDev = !app.isPackaged && process.env.TETHER_PROD !== '1';
@@ -151,6 +153,7 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
+      autoplayPolicy: 'no-user-gesture-required', // audio cues (goal set, drift)
     },
   });
 
@@ -497,6 +500,41 @@ function watchEgress() {
 ipcMain.handle('net:get', () => ({ ...netStats }));
 
 // ---------------------------------------------------------------------------
+// Voice goal input: mic in the island, Whisper (whisper.cpp) + the local
+// model in main. Audio stays in memory apart from one temp WAV per request.
+// ---------------------------------------------------------------------------
+
+const MAX_VOICE_SAMPLES = stt.SAMPLE_RATE * 20;
+
+// The microphone is only for Tether's own pages, and only audio.
+function allowMicOnly() {
+  const ours = (wc) => wc === win?.webContents || wc === dashWin?.webContents;
+  session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
+    const audioOnly = !details.mediaTypes?.length || details.mediaTypes.every((t) => t === 'audio');
+    callback(permission === 'media' && audioOnly && ours(wc));
+  });
+  session.defaultSession.setPermissionCheckHandler(
+    (wc, permission) => permission === 'media' && Boolean(wc) && ours(wc),
+  );
+}
+
+ipcMain.handle('voice:status', () => stt.status());
+ipcMain.handle('voice:transcribe', async (_e, samples) => {
+  if (!samples?.length) return { ok: false, error: 'empty' };
+  if (!stt.status().ready) return { ok: false, error: 'missing' };
+  const audio = Float32Array.from(samples.length > MAX_VOICE_SAMPLES ? samples.slice(0, MAX_VOICE_SAMPLES) : samples);
+  try {
+    const { text, latencyMs: sttMs } = await stt.transcribe(audio);
+    if (!text) return { ok: false, error: 'empty', sttMs };
+    const intent = await extractIntent(text, { ollama, ready: evaluator?.health.status === 'ready' });
+    return { ok: true, sttMs, ...intent };
+  } catch (err) {
+    console.warn('[voice] failed:', err.message);
+    return { ok: false, error: 'failed' };
+  }
+});
+
+// ---------------------------------------------------------------------------
 // App lifecycle
 // ---------------------------------------------------------------------------
 
@@ -511,6 +549,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     if (isMac) app.dock?.hide();
     watchEgress();
+    allowMicOnly();
     createWindow();
     startRecorder();
     startContextDaemon();
@@ -522,6 +561,12 @@ if (!app.requestSingleInstanceLock()) {
       if (!win) return;
       summon();
       win.webContents.send('shortcut', 'open-input');
+    });
+    // Voice goal: press to start talking, press again (or pause) to finish.
+    globalShortcut.register('CommandOrControl+Shift+Space', () => {
+      if (!win) return;
+      summon();
+      win.webContents.send('shortcut', 'voice');
     });
   });
 

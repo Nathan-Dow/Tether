@@ -34,6 +34,8 @@ const fallback = {
   onResume: unsub,
   previewResume: noop,
   copyText: async (text) => navigator.clipboard.writeText(text).then(() => true),
+  getVoiceStatus: async () => ({ ready: false, reason: 'unsupported' }),
+  transcribe: async () => ({ ok: false, error: 'missing' }),
   openGoogleCalendar: async () => ({ ok: false }),
   saveIcs: async () => ({ ok: false }),
 };
