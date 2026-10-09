@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CornerDownLeft, Play, Target, X } from 'lucide-react';
+import { CornerDownLeft, LayoutDashboard, Play, Target, X } from 'lucide-react';
 import { bridge } from '../lib/bridge.js';
 import AiStatus from './AiStatus.jsx';
 
@@ -34,6 +34,14 @@ export default function GoalInput({ sprint, aiHealth, onStart, onCancel, onEnd }
         </div>
         <div className="flex items-center gap-1.5">
           <AiStatus health={aiHealth} />
+          <button
+            type="button"
+            onClick={() => bridge.openDashboard()}
+            title="Open the focus dashboard"
+            className="flex size-6 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-white/10 hover:text-zinc-200"
+          >
+            <LayoutDashboard size={13} />
+          </button>
           {sprint && (
             <button
               type="button"

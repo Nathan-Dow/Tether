@@ -1,0 +1,44 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text',
+    'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Mono', 'Cascadia Code', Consolas, ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: #09090b;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-zinc-300);
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+
+/* Frameless window: the top bar drags, its controls don't. */
+.titlebar {
+  -webkit-app-region: drag;
+}
+.titlebar button,
+.titlebar [role='tab'] {
+  -webkit-app-region: no-drag;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  border: 3px solid #09090b;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

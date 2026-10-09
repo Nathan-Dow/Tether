@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarPlus, Check, CircleCheck, Download, X } from 'lucide-react';
+import { CalendarPlus, Check, CircleCheck, Download, LayoutDashboard, X } from 'lucide-react';
 import { bridge } from '../lib/bridge.js';
 import { fmtDuration } from '../lib/format.js';
 import Ribbon from './Ribbon.jsx';
@@ -88,6 +88,15 @@ export default function SummaryCard({ report, onClose }) {
           run={() => bridge.openGoogleCalendar(report.id)}
         />
         <ExportButton icon={Download} label=".ics" doneLabel="Saved" run={() => bridge.saveIcs(report.id)} />
+        <button
+          type="button"
+          onClick={() => bridge.openDashboard()}
+          title="Open the focus dashboard"
+          className="flex h-7 items-center gap-1.5 rounded-lg px-2 text-[12px] text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
+        >
+          <LayoutDashboard size={13} />
+          Dashboard
+        </button>
         <button
           type="button"
           onClick={onClose}

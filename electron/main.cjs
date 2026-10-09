@@ -49,6 +49,77 @@ function topCenter() {
   };
 }
 
+// Load one of the Vite pages (dev server or built dist/). A failed load would
+// leave an empty window, so retry a few times: transient errors (dev server
+// still starting, ERR_NO_BUFFER_SPACE) happen.
+function loadPage(target, page) {
+  const load = () =>
+    isDev
+      ? target.loadURL(`${DEV_URL}/${page}`)
+      : target.loadFile(path.join(__dirname, '..', 'dist', page));
+
+  let retries = 0;
+  target.webContents.on('did-fail-load', (_e, code, desc, _url, isMainFrame) => {
+    if (!isMainFrame || code === -3 /* ERR_ABORTED */ || retries >= 10) return;
+    retries += 1;
+    console.warn(`[window] ${page} failed to load (${desc}), retry ${retries}/10`);
+    setTimeout(() => !target.isDestroyed() && load(), 1000);
+  });
+  target.webContents.on('did-finish-load', () => {
+    retries = 0;
+  });
+
+  load();
+}
+
+// Send to every open window (island + dashboard).
+function broadcast(channel, payload) {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) w.webContents.send(channel, payload);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard window
+// ---------------------------------------------------------------------------
+
+let dashWin = null;
+
+function openDashboard() {
+  if (dashWin) {
+    if (dashWin.isMinimized()) dashWin.restore();
+    dashWin.show();
+    dashWin.focus();
+    return;
+  }
+  dashWin = new BrowserWindow({
+    width: 1240,
+    height: 820,
+    minWidth: 980,
+    minHeight: 640,
+    show: false,
+    title: 'Tether — Focus Dashboard',
+    backgroundColor: '#09090b',
+    titleBarStyle: 'hidden',
+    // Native window controls drawn over our own dark top bar.
+    titleBarOverlay: isMac ? undefined : { color: '#09090b', symbolColor: '#a1a1aa', height: 44 },
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      spellcheck: false,
+    },
+  });
+  loadPage(dashWin, 'dashboard.html');
+  dashWin.once('ready-to-show', () => dashWin?.show());
+  dashWin.on('closed', () => {
+    dashWin = null;
+  });
+}
+
+ipcMain.on('dashboard:open', openDashboard);
+
 function createWindow() {
   const { x, y } = topCenter();
 
@@ -86,23 +157,7 @@ function createWindow() {
   // renderer flips this off while the cursor is over the island itself.
   win.setIgnoreMouseEvents(true, { forward: true });
 
-  const load = () =>
-    isDev ? win.loadURL(DEV_URL) : win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
-
-  // A failed load would leave an invisible, empty island. Retry a few times:
-  // transient errors (dev server still starting, ERR_NO_BUFFER_SPACE) happen.
-  let retries = 0;
-  win.webContents.on('did-fail-load', (_e, code, desc, _url, isMainFrame) => {
-    if (!isMainFrame || code === -3 /* ERR_ABORTED */ || retries >= 10) return;
-    retries += 1;
-    console.warn(`[window] load failed (${desc}), retry ${retries}/10`);
-    setTimeout(() => win && load(), 1000);
-  });
-  win.webContents.on('did-finish-load', () => {
-    retries = 0;
-  });
-
-  load();
+  loadPage(win, 'index.html');
 
   win.once('ready-to-show', () => win.showInactive());
   win.on('closed', () => {
@@ -250,7 +305,7 @@ ipcMain.on('sprint:set', (_e, sprint) => {
     const finished = recorder?.finish();
     if (finished) {
       lastReport = sessionReport(finished);
-      win?.webContents.send('session:finished', lastReport);
+      broadcast('session:finished', lastReport);
     }
   }
   evaluator?.setSprint(sprint);
@@ -322,7 +377,18 @@ ipcMain.handle('calendar:ics', async (_e, id) => {
   fs.writeFileSync(filePath, icsFile(report));
   return { ok: true, filePath };
 });
-ipcMain.handle('analytics:clear', () => {
+ipcMain.handle('analytics:clear', async (e) => {
+  const parent = BrowserWindow.fromWebContents(e.sender) ?? undefined;
+  const { response } = await dialog.showMessageBox(parent, {
+    type: 'warning',
+    buttons: ['Delete history', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    title: 'Clear focus history',
+    message: 'Delete all recorded sprints from this computer?',
+    detail: 'Window titles, verdicts and scores stored by Tether will be permanently removed.',
+  });
+  if (response !== 0) return false;
   store?.clear();
   lastReport = null;
   return true;

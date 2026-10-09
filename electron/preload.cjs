@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('tether', {
   dragEnd: () => ipcRenderer.send('island:drag-end'),
   recenter: () => ipcRenderer.send('island:recenter'),
   toggleDevTools: () => ipcRenderer.send('island:devtools'),
+  openDashboard: () => ipcRenderer.send('dashboard:open'),
 
   // Air-gap egress counter
   getNetStats: () => ipcRenderer.invoke('net:get'),

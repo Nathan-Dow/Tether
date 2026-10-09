@@ -11,6 +11,7 @@ const fallback = {
   dragEnd: noop,
   recenter: noop,
   toggleDevTools: noop,
+  openDashboard: noop,
   getNetStats: async () => ({ external: 0, lastHost: null }),
   onNetStats: unsub,
   onShortcut: unsub,
