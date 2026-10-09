@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { bridge } from './lib/bridge.js';
 import { useCountdown } from './hooks/useCountdown.js';
 import { useVoice } from './hooks/useVoice.js';
+import { useVisionSentinel } from './hooks/useVisionSentinel.js';
 import { playDrift, playGoalSet } from './lib/sounds.js';
 import { EXPANDED_MODES, useIsland } from './state/useIsland.js';
 import Island from './components/Island.jsx';
@@ -72,6 +73,7 @@ export default function App() {
       bridge.onShortcut((name) => {
         if (name === 'open-input') dispatch({ type: 'OPEN_INPUT' });
         if (name === 'voice') voiceRef.current();
+        if (name === 'phone-demo') toggleDemoRef.current();
       }),
     [dispatch],
   );
@@ -81,6 +83,31 @@ export default function App() {
   useEffect(() => {
     bridge.setSprint(activeSprint);
   }, [activeSprint]);
+
+  // Vision Sentinel: webcam presence + smartphone corroboration during a
+  // sprint. A pickup morphs the island amber and lands in the Friction ledger.
+  const vision = useVisionSentinel({ active: Boolean(activeSprint) });
+  const toggleDemoRef = useRef(vision.toggleDemo);
+  toggleDemoRef.current = vision.toggleDemo;
+  const { phoneDetected, source: phoneSource, clearDemo } = vision;
+  useEffect(() => {
+    bridge.reportPhone({ phoneDetected, source: phoneSource });
+    if (!phoneDetected) {
+      dispatch({ type: 'PHONE_DOWN' });
+      return;
+    }
+    dispatch({
+      type: 'DRIFT',
+      drift: {
+        app: 'Smartphone detected',
+        confidence: phoneSource === 'demo' ? 0.92 : 0.8,
+        nudge: 'Return attention to sprint.',
+        reason: 'Vision Sentinel saw a phone in frame',
+        source: 'vision',
+        demo: phoneSource === 'demo',
+      },
+    });
+  }, [phoneDetected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Local AI status (Ollama ready / offline -> rules fallback).
   useEffect(() => {
@@ -125,8 +152,8 @@ export default function App() {
   }, [dispatch]);
 
   // In-island keyboard: Cmd/Ctrl+K input, Esc collapse, and rehearsal
-  // shortcuts Cmd/Ctrl+Shift+D (mock drift), Cmd/Ctrl+Shift+S (demo summary)
-  // and Cmd/Ctrl+Shift+R (resume note).
+  // shortcuts Cmd/Ctrl+Shift+D (mock drift), Cmd/Ctrl+Shift+S (demo summary),
+  // Cmd/Ctrl+Shift+R (resume note) and Cmd/Ctrl+Shift+W (phone in hand).
   useEffect(() => {
     const onKey = (e) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -154,6 +181,10 @@ export default function App() {
         bridge.getDayReport({ demo: true }).then((rep) => {
           if (rep?.sessions[0]) dispatch({ type: 'SHOW_SUMMARY', report: rep.sessions[0] });
         });
+      } else if (mod && e.shiftKey && key === 'w') {
+        // Also a global shortcut; this catches it if registration failed.
+        e.preventDefault();
+        toggleDemoRef.current();
       } else if (mod && e.shiftKey && key === 'r') {
         e.preventDefault();
         bridge.previewResume();
@@ -204,11 +235,18 @@ export default function App() {
               drift={drift}
               sprint={sprint}
               countdown={countdown}
-              onBack={() => dispatch({ type: 'DISMISS_DRIFT' })}
-              onRelated={() => {
-                bridge.allowContext(drift.key);
+              onBack={() => {
+                if (drift.source === 'vision') clearDemo();
                 dispatch({ type: 'DISMISS_DRIFT' });
               }}
+              onRelated={
+                drift.source === 'vision'
+                  ? null
+                  : () => {
+                      bridge.allowContext(drift.key);
+                      dispatch({ type: 'DISMISS_DRIFT' });
+                    }
+              }
             />
           </View>
         )}
@@ -231,6 +269,7 @@ export default function App() {
               sprint={sprint}
               countdown={countdown}
               context={context}
+              vision={vision}
               onOpen={() => dispatch({ type: 'OPEN_INPUT' })}
             />
           </View>

@@ -1,4 +1,4 @@
-import { Bug, BookOpen, CalendarPlus, Download, MessageCircle } from 'lucide-react';
+import { Bug, BookOpen, CalendarPlus, Download, MessageCircle, Smartphone } from 'lucide-react';
 import { bridge } from '../lib/bridge.js';
 import { fmtClock, fmtDuration } from '../lib/format.js';
 import { STATES } from '../lib/states.js';
@@ -42,6 +42,7 @@ const KINDS = {
   social: { Icon: MessageCircle, label: 'Social leak' },
   informational: { Icon: BookOpen, label: 'Informational rabbit hole' },
   debugging: { Icon: Bug, label: 'Debugger loop' },
+  physical: { Icon: Smartphone, label: 'Physical drift · phone' },
 };
 
 // Friction Debt: each rabbit hole, how deep it went and whether you came back.

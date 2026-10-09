@@ -331,6 +331,9 @@ ipcMain.on('sprint:set', (_e, sprint) => {
   evaluator?.setSprint(sprint);
 });
 
+// Vision Sentinel: smartphone pickups from the island's webcam sampler.
+ipcMain.on('vision:phone', (_e, event) => recorder?.onPhone(event ?? {}));
+
 ipcMain.on('eval:allow', (_e, key) => {
   evaluator?.allow(key);
   recorder?.onAllow(key);
@@ -514,12 +517,12 @@ ipcMain.handle('net:get', () => ({ ...netStats }));
 
 const MAX_VOICE_SAMPLES = stt.SAMPLE_RATE * 20;
 
-// The microphone is only for Tether's own pages, and only audio.
+// Mic (voice goals) and camera (Vision Sentinel) are only for Tether's own pages.
 function allowMicOnly() {
   const ours = (wc) => wc === win?.webContents || wc === dashWin?.webContents;
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
-    const audioOnly = !details.mediaTypes?.length || details.mediaTypes.every((t) => t === 'audio');
-    callback(permission === 'media' && audioOnly && ours(wc));
+    const avOnly = !details.mediaTypes?.length || details.mediaTypes.every((t) => t === 'audio' || t === 'video');
+    callback(permission === 'media' && avOnly && ours(wc));
   });
   session.defaultSession.setPermissionCheckHandler(
     (wc, permission) => permission === 'media' && Boolean(wc) && ours(wc),
@@ -575,6 +578,10 @@ if (!app.requestSingleInstanceLock()) {
       if (!win) return;
       summon();
       win.webContents.send('shortcut', 'voice');
+    });
+    // Demo failsafe: toggle "smartphone detected" without a camera.
+    globalShortcut.register('CommandOrControl+Shift+W', () => {
+      win?.webContents.send('shortcut', 'phone-demo');
     });
   });
 
