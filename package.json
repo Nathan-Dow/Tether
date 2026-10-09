@@ -1,0 +1,34 @@
+{
+  "name": "tether",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first Dynamic Island focus copilot powered by an on-device LLM.",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "concurrently -k -n vite,electron -c magenta,cyan \"vite\" \"wait-on tcp:127.0.0.1:5173 && electron .\"",
+    "dev": "npm start",
+    "build": "vite build",
+    "preview:prod": "vite build && cross-env TETHER_PROD=1 electron .",
+    "probe": "node scripts/probe.cjs",
+    "eval": "node scripts/eval.cjs",
+    "test": "node --test test/*.test.cjs",
+    "postinstall": "node node_modules/electron/install.js"
+  },
+  "dependencies": {
+    "framer-motion": "^14.0.0",
+    "lucide-react": "^1.54.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "electron": "^44.7.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.4",
+    "wait-on": "^9.5.1"
+  }
+}

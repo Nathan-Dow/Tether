@@ -1,0 +1,30 @@
+// window.tether is injected by electron/preload.cjs. In a plain browser tab
+// (e.g. `vite` alone for quick styling work) fall back to harmless no-ops.
+const noop = () => {};
+const unsub = () => noop;
+
+const fallback = {
+  platform: navigator.platform.toLowerCase().includes('mac') ? 'darwin' : 'win32',
+  setInteractive: noop,
+  focus: noop,
+  dragStart: noop,
+  dragEnd: noop,
+  recenter: noop,
+  toggleDevTools: noop,
+  getNetStats: async () => ({ external: 0, lastHost: null }),
+  onNetStats: unsub,
+  onShortcut: unsub,
+  getContext: async () => null,
+  onContext: unsub,
+  setSprint: noop,
+  allowContext: noop,
+  getAiHealth: async () => null,
+  getEvalLog: async () => [],
+  onAiHealth: unsub,
+  onVerdict: unsub,
+  onEvaluation: unsub,
+};
+
+export const bridge = window.tether ?? fallback;
+export const isMac = bridge.platform === 'darwin';
+export const modKey = isMac ? '⌘' : 'Ctrl';
