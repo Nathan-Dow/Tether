@@ -12,6 +12,7 @@ const MAX_MS = 15_000;
 const MIN_SPEECH_MS = 300;
 const HOLD_MS = 350; // pointer held longer than this = push-to-talk
 const BARS = 32;
+const VOICED_RUN = 3; // consecutive loud chunks (~130 ms) before it counts as speech
 
 // Average-downsample to 16 kHz (mic is usually 48 kHz).
 function downsample(chunks, fromRate) {
@@ -130,7 +131,7 @@ export function useVoice({ onResult }) {
       const src = ctx.createMediaStreamSource(stream);
       const proc = ctx.createScriptProcessor(2048, 1, 1);
       const startedAt = performance.now();
-      const r = { id, stream, ctx, src, proc, chunks: [], speechMs: 0, lastVoiceAt: 0, floor: 1, startedAt };
+      const r = { id, stream, ctx, src, proc, chunks: [], speechMs: 0, lastVoiceAt: 0, noise: 0.005, run: 0, startedAt };
       // Released while the mic was opening: a tap means hands-free.
       r.hold = hold && press.releasedAt == null;
       rec.current = r;
@@ -141,11 +142,15 @@ export function useVoice({ onResult }) {
         let sq = 0;
         for (let i = 0; i < data.length; i++) sq += data[i] * data[i];
         const rms = Math.sqrt(sq / data.length);
-        // Speech = clearly above the quietest level heard so far.
-        r.floor = Math.min(r.floor, Math.max(rms, 0.001));
+        // Speech = sustained energy well above the learned background
+        // level; short clicks and taps don't count.
         const now = performance.now();
-        if (rms > Math.max(0.012, r.floor * 3)) {
-          r.speechMs += (data.length / ctx.sampleRate) * 1000;
+        const chunkMs = (data.length / ctx.sampleRate) * 1000;
+        const loud = rms > Math.max(0.015, r.noise * 3);
+        r.run = loud ? r.run + 1 : 0;
+        if (!loud) r.noise = r.noise * 0.95 + rms * 0.05;
+        if (r.run >= VOICED_RUN) {
+          r.speechMs += r.run === VOICED_RUN ? chunkMs * VOICED_RUN : chunkMs;
           r.lastVoiceAt = now;
         }
         setLevels((prev) => [...prev.slice(1), Math.min(1, rms * 9)]);

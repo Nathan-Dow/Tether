@@ -129,10 +129,15 @@ export default function DayRibbon({ sessions, selectedT, onSelect }) {
                   className="min-w-0"
                   style={{ flexGrow: it.session.timeline.length, flexBasis: 0 }}
                 >
-                  <div className="font-mono text-[10.5px] text-zinc-500">
+                  <div
+                    className="truncate font-mono text-[10.5px] text-zinc-500"
+                    title={`${fmtClock(it.session.startedAt)}–${fmtClock(it.session.endedAt)} · ${it.session.goal}`}
+                  >
                     {fmtClock(it.session.startedAt)}–{fmtClock(it.session.endedAt)}
                   </div>
-                  <div className="truncate text-[11px] text-zinc-400">{it.session.goal}</div>
+                  <div className="truncate text-[11px] text-zinc-400" title={it.session.goal}>
+                    {it.session.goal}
+                  </div>
                 </div>
               ),
             )}

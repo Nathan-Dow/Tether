@@ -10,8 +10,9 @@ export function fmtDuration(ms) {
   return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
 }
 
+// 24-hour everywhere: compact and never wraps on an AM/PM suffix.
 export function fmtClock(ms) {
-  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 }
 
 // 24-hour so it stays one compact, aligned column in tables.

@@ -19,7 +19,7 @@ const OPTIONS = [
 ];
 
 const MENU_W = 248;
-const MENU_H = 196;
+const MENU_H = 232; // rendered height, for flipping above rows near the bottom
 
 // Pop-up for labelling a site or app yourself. Anchored to the clicked cell
 // with fixed positioning so the scrolling table can't clip it.

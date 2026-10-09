@@ -31,6 +31,13 @@ const { extractIntent } = require('./voice/intent.cjs');
 
 const isMac = process.platform === 'darwin';
 const isDev = !app.isPackaged && process.env.TETHER_PROD !== '1';
+
+// Test harness (dev only): TETHER_FAKE_MIC=<file.wav> makes Chromium use the
+// WAV file as the microphone, so voice input can be tested without speaking.
+if (isDev && process.env.TETHER_FAKE_MIC) {
+  app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+  app.commandLine.appendSwitch('use-file-for-fake-audio-capture', process.env.TETHER_FAKE_MIC);
+}
 const DEV_URL = 'http://127.0.0.1:5173';
 
 // The window is a fixed transparent canvas; the island animates inside it.

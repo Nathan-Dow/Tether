@@ -58,7 +58,7 @@ export default function GoalInput({ sprint, aiHealth, prefill, onStart, onCancel
     >
       <div className="flex items-center justify-between">
         <div
-          className="flex min-w-0 items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-zinc-400 uppercase"
+          className="flex shrink-0 items-center gap-2 text-[11px] font-semibold tracking-[0.14em] whitespace-nowrap text-zinc-400 uppercase"
           title={prefill?.transcript ? `Heard: "${prefill.transcript}"` : undefined}
         >
           {prefill ? <Mic size={13} className="text-sky-300" /> : <Target size={13} className="text-emerald-400" />}
@@ -69,13 +69,14 @@ export default function GoalInput({ sprint, aiHealth, prefill, onStart, onCancel
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <AiStatus health={aiHealth} />
+        <div className="flex min-w-0 items-center gap-1.5 pl-3">
+          {/* A spoken goal needs the room for its domain chip. */}
+          {!prefill && <AiStatus health={aiHealth} />}
           <button
             type="button"
             onClick={() => bridge.openDashboard()}
             title="Open the focus dashboard"
-            className="flex size-6 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-white/10 hover:text-zinc-200"
+            className="flex size-6 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-white/10 hover:text-zinc-200"
           >
             <LayoutDashboard size={13} />
           </button>
@@ -83,7 +84,7 @@ export default function GoalInput({ sprint, aiHealth, prefill, onStart, onCancel
             <button
               type="button"
               onClick={onEnd}
-              className="rounded-md px-2 py-0.5 text-[11px] text-zinc-500 transition-colors hover:bg-white/5 hover:text-red-300"
+              className="shrink-0 rounded-md px-2 py-0.5 text-[11px] whitespace-nowrap text-zinc-500 transition-colors hover:bg-white/5 hover:text-red-300"
             >
               End sprint
             </button>
@@ -92,7 +93,7 @@ export default function GoalInput({ sprint, aiHealth, prefill, onStart, onCancel
             type="button"
             onClick={onCancel}
             title="Close (Esc)"
-            className="flex size-6 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-white/10 hover:text-zinc-200"
+            className="flex size-6 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-white/10 hover:text-zinc-200"
           >
             <X size={14} />
           </button>
@@ -152,7 +153,7 @@ export default function GoalInput({ sprint, aiHealth, prefill, onStart, onCancel
         <button
           type="submit"
           disabled={!canStart}
-          className="relative flex h-8 items-center gap-1.5 overflow-hidden rounded-lg bg-emerald-400 pr-2 pl-3 text-[12.5px] font-semibold text-black transition-all hover:bg-emerald-300 disabled:bg-white/5 disabled:text-zinc-600"
+          className="relative flex h-8 shrink-0 items-center gap-1.5 overflow-hidden rounded-lg bg-emerald-400 pr-2 pl-3 text-[12.5px] font-semibold text-black transition-all hover:bg-emerald-300 disabled:bg-white/5 disabled:text-zinc-600"
         >
           {autoIn != null && (
             <motion.span
@@ -164,10 +165,10 @@ export default function GoalInput({ sprint, aiHealth, prefill, onStart, onCancel
             />
           )}
           <Play size={12} fill="currentColor" className="relative" />
-          <span className="relative tabular-nums">
+          <span className="relative whitespace-nowrap tabular-nums">
             {autoIn != null ? `Start in ${autoIn}` : sprint ? 'Restart' : 'Start'}
           </span>
-          <CornerDownLeft size={12} className="relative opacity-60" />
+          {autoIn == null && <CornerDownLeft size={12} className="relative opacity-60" />}
         </button>
       </div>
     </form>

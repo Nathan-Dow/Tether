@@ -11,10 +11,13 @@ export default function AiStatus({ health }) {
   if (!health) return null;
   const s = STATES[health.status] ?? STATES.offline;
   return (
-    <span className={`flex items-center gap-1.5 text-[10.5px] whitespace-nowrap ${s.text}`}>
-      <span className={`size-1.5 rounded-full ${s.dot}`} />
-      <Cpu size={11} className="opacity-70" />
-      {s.label(health.model)}
+    <span
+      title={s.label(health.model)}
+      className={`flex min-w-0 items-center gap-1.5 text-[10.5px] whitespace-nowrap ${s.text}`}
+    >
+      <span className={`size-1.5 shrink-0 rounded-full ${s.dot}`} />
+      <Cpu size={11} className="shrink-0 opacity-70" />
+      <span className="truncate">{s.label(health.model)}</span>
     </span>
   );
 }
