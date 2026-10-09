@@ -1,6 +1,8 @@
-import { Bug, BookOpen, MessageCircle } from 'lucide-react';
+import { Bug, BookOpen, CalendarPlus, Download, MessageCircle } from 'lucide-react';
+import { bridge } from '../lib/bridge.js';
 import { fmtClock, fmtDuration } from '../lib/format.js';
 import { STATES } from '../lib/states.js';
+import ExportButton from '../components/ExportButton.jsx';
 import Ribbon from '../components/Ribbon.jsx';
 import Card from './Card.jsx';
 
@@ -72,7 +74,8 @@ export function Episodes({ episodes }) {
   );
 }
 
-// Today's sprints; clicking one scrubs the timeline to its start.
+// Today's sprints; clicking one scrubs the timeline to its start. Each can
+// be exported to Google Calendar or as an .ics file.
 export function SessionList({ sessions, onSelect }) {
   return (
     <Card title="Sprints" subtitle="Flow score and fragmentation index per sprint">
@@ -80,11 +83,11 @@ export function SessionList({ sessions, onSelect }) {
         {[...sessions]
           .sort((a, b) => b.startedAt - a.startedAt)
           .map((s) => (
-            <li key={s.id}>
+            <li key={s.id} className="rounded-lg transition-colors hover:bg-white/[0.04]">
               <button
                 type="button"
                 onClick={() => onSelect(s.timeline[0]?.t ?? s.startedAt)}
-                className="w-full rounded-lg px-2 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                className="w-full rounded-lg px-2 pt-2 pb-1.5 text-left"
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="truncate text-[12.5px] text-zinc-200">{s.goal}</span>
@@ -105,6 +108,24 @@ export function SessionList({ sessions, onSelect }) {
                 </div>
                 <Ribbon timeline={s.timeline} className="mt-2 h-1.5" />
               </button>
+              <div className="flex gap-1.5 px-2 pb-2">
+                <ExportButton
+                  small
+                  icon={CalendarPlus}
+                  label="Google Calendar"
+                  doneLabel="Opened"
+                  title="Open a pre-filled Google Calendar event in your browser"
+                  run={() => bridge.openGoogleCalendar(s.id)}
+                />
+                <ExportButton
+                  small
+                  icon={Download}
+                  label=".ics"
+                  doneLabel="Saved"
+                  title="Save a calendar file (Google, Outlook, Apple Calendar)"
+                  run={() => bridge.saveIcs(s.id)}
+                />
+              </div>
             </li>
           ))}
       </ul>

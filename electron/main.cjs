@@ -373,10 +373,12 @@ ipcMain.handle('calendar:google', async (_e, id) => {
   return { ok: true };
 });
 
-ipcMain.handle('calendar:ics', async (_e, id) => {
+ipcMain.handle('calendar:ics', async (e, id) => {
   const report = findReport(id);
   if (!report) return { ok: false };
-  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+  // Attach the dialog to whichever window asked: the island or the dashboard.
+  const parent = BrowserWindow.fromWebContents(e.sender) ?? win;
+  const { canceled, filePath } = await dialog.showSaveDialog(parent, {
     title: 'Save sprint to calendar',
     defaultPath: path.join(app.getPath('downloads'), icsFileName(report)),
     filters: [{ name: 'Calendar event', extensions: ['ics'] }],
