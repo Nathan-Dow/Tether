@@ -7,6 +7,7 @@
 //   drift  off-task (confident distracted verdict)
 //   idle   desktop / away from the keyboard
 const { heuristicVerdict } = require('../ai/heuristics.cjs');
+const { labelVerdict } = require('./labels.cjs');
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -58,8 +59,9 @@ function verdictFor(seg, byKey, goal) {
   return { ...h, source: 'rules' };
 }
 
-// Clip segments to the sprint and attach state, verdict and site.
-function annotate(session) {
+// Clip segments to the sprint and attach state, verdict and site. Your own
+// labels ({ site: 'focus' | 'drift' }) override whatever was judged at the time.
+function annotate(session, { labels = {} } = {}) {
   const start = session.startedAt;
   const end = session.endedAt ?? session.segments.at(-1)?.end ?? start;
   const byKey = new Map();
@@ -74,16 +76,21 @@ function annotate(session) {
     const e = Math.min(raw.end, end);
     if (e <= s) continue;
     const seg = { ...raw, start: s, end: e, ms: e - s };
+    const site = siteOf(seg);
     let state;
     let verdict = null;
     if (seg.category === 'idle') {
       state = 'idle';
     } else {
       verdict = verdictFor(seg, byKey, session.goal);
+      if (Object.hasOwn(labels, site)) {
+        const judged = verdict.driftType && verdict.driftType !== 'none' ? verdict.driftType : undefined;
+        verdict = labelVerdict(site, labels[site], judged);
+      }
       if (verdict.isDistracted && verdict.confidence >= CFG.driftConfidence) state = 'drift';
       else state = seg.errorSignal ? 'debug' : 'focus';
     }
-    out.push({ ...seg, state, verdict, site: siteOf(seg) });
+    out.push({ ...seg, state, verdict, site });
   }
   return { start, end, segments: out };
 }
@@ -314,8 +321,8 @@ function flowScoreOf(totals, cfi) {
   return Math.round((share + cfi) / 2);
 }
 
-function sessionReport(session) {
-  const { start, end, segments } = annotate(session);
+function sessionReport(session, { labels } = {}) {
+  const { start, end, segments } = annotate(session, { labels });
   const totals = totalsOf(segments);
   const switches = switchesOf(segments);
   const windows = cfiWindows(segments, switches, start, end);
@@ -369,10 +376,10 @@ const dayKey = (ms) => {
 };
 
 // Dashboard model for one day, with the trend against earlier sessions.
-function dayReport(sessions, { day = Date.now() } = {}) {
+function dayReport(sessions, { day = Date.now(), labels } = {}) {
   const today = sessions.filter((s) => dayKey(s.startedAt) === dayKey(day));
   const earlier = sessions.filter((s) => s.startedAt < new Date(day).setHours(0, 0, 0, 0));
-  const reports = today.map(sessionReport);
+  const reports = today.map((s) => sessionReport(s, { labels }));
 
   const totals = { focusMs: 0, debugMs: 0, driftMs: 0, idleMs: 0, activeMs: 0, onTaskMs: 0 };
   for (const r of reports) for (const k of Object.keys(totals)) totals[k] += r.totals[k];
@@ -386,7 +393,7 @@ function dayReport(sessions, { day = Date.now() } = {}) {
 
   const prevScores = earlier
     .slice(-10)
-    .map(sessionReport)
+    .map((s) => sessionReport(s, { labels }))
     .map((r) => r.flowScore)
     .filter((v) => v != null);
   const prevAvg = prevScores.length ? Math.round(sum(prevScores) / prevScores.length) : null;

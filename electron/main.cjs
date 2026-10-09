@@ -20,6 +20,7 @@ const { ContextDaemon } = require('./context/daemon.cjs');
 const { Evaluator } = require('./ai/evaluator.cjs');
 const { SessionStore } = require('./analytics/store.cjs');
 const { SessionRecorder } = require('./analytics/recorder.cjs');
+const { LabelStore } = require('./analytics/labels.cjs');
 const { sessionReport, dayReport } = require('./analytics/metrics.cjs');
 const { demoSessions } = require('./analytics/demoDay.cjs');
 const { googleCalendarUrl, icsFile, icsFileName } = require('./analytics/calendar.cjs');
@@ -288,6 +289,7 @@ function startEvaluator() {
   evaluator = new Evaluator({
     daemon,
     intervalMs: Number(process.env.TETHER_EVAL_MS) || 8000,
+    getLabels,
   });
   evaluator.on('verdict', (entry) => {
     recorder?.onVerdict(entry);
@@ -312,7 +314,7 @@ ipcMain.on('sprint:set', (_e, sprint) => {
   } else {
     const finished = recorder?.finish();
     if (finished) {
-      lastReport = sessionReport(finished);
+      lastReport = sessionReport(finished, { labels: getLabels() });
       broadcast('session:finished', lastReport);
     }
   }
@@ -331,12 +333,14 @@ ipcMain.handle('eval:log', () => evaluator?.log ?? []);
 // ---------------------------------------------------------------------------
 
 let store = null;
+let labelStore = null;
 let recorder = null;
 let lastReport = null;
 const HISTORY_DAYS = 30;
 
 function startRecorder() {
   store = new SessionStore(path.join(app.getPath('userData'), 'sessions'));
+  labelStore = new LabelStore(path.join(app.getPath('userData'), 'labels.json'));
   recorder = new SessionRecorder({
     store,
     getIdleSeconds: () => powerMonitor.getSystemIdleTime(),
@@ -352,16 +356,27 @@ function allSessions() {
   return [...saved.filter((s) => s.id !== live.id), { ...live, endedAt: Date.now() }];
 }
 
+const getLabels = () => labelStore?.all() ?? {};
+
 ipcMain.handle('analytics:day', (_e, { demo = false } = {}) =>
-  demo ? dayReport(demoSessions(), { day: Date.now() }) : dayReport(allSessions()),
+  dayReport(demo ? demoSessions() : allSessions(), { day: Date.now(), labels: getLabels() }),
 );
+
+// Your own "always on-task / always drift" labels, set from the dashboard.
+// Every window re-reads its reports when they change.
+ipcMain.handle('labels:get', () => getLabels());
+ipcMain.handle('labels:set', (_e, { site, label } = {}) => {
+  const labels = labelStore?.set(site, label) ?? {};
+  broadcast('labels:changed', labels);
+  return labels;
+});
 ipcMain.handle('analytics:last-session', () => lastReport);
 
 // Any session by id: the one just finished, a saved one, or a demo one.
 function findReport(id) {
-  if (lastReport?.id === id) return lastReport;
   const saved = store?.load(id) ?? demoSessions().find((s) => s.id === id);
-  return saved ? sessionReport(saved) : null;
+  if (saved) return sessionReport(saved, { labels: getLabels() });
+  return lastReport?.id === id ? lastReport : null;
 }
 
 // Opening the template is the one deliberate, user-initiated trip to the
@@ -429,7 +444,7 @@ function trackResume(entry) {
 }
 
 async function showResume(session, now) {
-  const snapshot = buildSnapshot(session, { now });
+  const snapshot = buildSnapshot(session, { now, labels: getLabels() });
   const note = await writeNote(snapshot, {
     ollama,
     ready: evaluator?.health.status === 'ready',

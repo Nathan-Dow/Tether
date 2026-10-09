@@ -45,6 +45,11 @@ contextBridge.exposeInMainWorld('tether', {
   clearHistory: () => ipcRenderer.invoke('analytics:clear'),
   onSessionFinished: (cb) => subscribe('session:finished', cb),
 
+  // Your own labels: { site: 'focus' | 'drift' }; label null = let the AI decide
+  getLabels: () => ipcRenderer.invoke('labels:get'),
+  setLabel: (site, label) => ipcRenderer.invoke('labels:set', { site, label }),
+  onLabelsChanged: (cb) => subscribe('labels:changed', cb),
+
   // Resume Flow
   onResume: (cb) => subscribe('resume:show', cb),
   previewResume: () => ipcRenderer.send('resume:preview'),

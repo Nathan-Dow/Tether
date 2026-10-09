@@ -9,6 +9,8 @@
 const { EventEmitter } = require('node:events');
 const ollama = require('./ollama.cjs');
 const { heuristicVerdict } = require('./heuristics.cjs');
+const { siteOf } = require('../analytics/metrics.cjs');
+const { labelVerdict } = require('../analytics/labels.cjs');
 
 const DRIFT_STREAK = 2;
 const DRIFT_MIN_CONFIDENCE = 0.7;
@@ -88,9 +90,10 @@ function normalize(raw, { goal, current }) {
 const keyOf = (c) => `${c.app}|${c.label}`;
 
 class Evaluator extends EventEmitter {
-  constructor({ daemon, intervalMs = 8000, timeoutMs = 8000 }) {
+  constructor({ daemon, intervalMs = 8000, timeoutMs = 8000, getLabels = () => ({}) }) {
     super();
     this.daemon = daemon;
+    this.getLabels = getLabels; // your "always on-task / always drift" labels
     this.intervalMs = intervalMs;
     this.timeoutMs = timeoutMs;
     this.timer = null;
@@ -159,6 +162,12 @@ class Evaluator extends EventEmitter {
 
     // Idle desktops and dev tools (editor/terminal) are decided by rules: the
     // tools ARE the work, and it spares an inference every tick.
+    // Your own labels beat every rule and the model.
+    const site = siteOf(current);
+    const labels = this.getLabels();
+    if (current.category !== 'idle' && Object.hasOwn(labels, site)) {
+      return { ...labelVerdict(site, labels[site]), latencyMs: 0 };
+    }
     if (['idle', 'editor', 'terminal'].includes(current.category)) {
       return { ...heuristicVerdict({ goal, current }), source: 'rules', latencyMs: 0 };
     }

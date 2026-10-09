@@ -27,8 +27,8 @@ function parseTerminalTitle(title = '') {
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 
-function buildSnapshot(session, { now = Date.now(), windowMs = WINDOW_MS } = {}) {
-  const { segments } = annotate({ ...session, endedAt: Math.min(now, session.endedAt ?? now) });
+function buildSnapshot(session, { now = Date.now(), windowMs = WINDOW_MS, labels } = {}) {
+  const { segments } = annotate({ ...session, endedAt: Math.min(now, session.endedAt ?? now) }, { labels });
 
   // The interruption: the latest run of off-task segments (skipping the
   // on-task moments since you came back).

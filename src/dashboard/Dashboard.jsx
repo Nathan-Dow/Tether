@@ -181,10 +181,20 @@ export default function Dashboard() {
   const [demo, setDemo] = useState(false);
   const [report, setReport] = useState(null);
   const [selectedT, setSelectedT] = useState(null);
+  const [labels, setLabels] = useState({});
 
   const load = useCallback(() => {
     bridge.getDayReport({ demo }).then((r) => r && setReport(r));
   }, [demo]);
+
+  // Your labels re-score every sprint, so reload the report when they change.
+  useEffect(() => {
+    bridge.getLabels().then((l) => l && setLabels(l));
+    return bridge.onLabelsChanged((l) => {
+      setLabels(l);
+      load();
+    });
+  }, [load]);
 
   // Live mode refreshes while a sprint is running and when one finishes.
   useEffect(() => {
@@ -222,6 +232,8 @@ export default function Dashboard() {
                   className="col-span-2"
                   sessions={report.sessions}
                   selectedT={selectedT}
+                  labels={labels}
+                  onLabel={(site, label) => bridge.setLabel(site, label)}
                 />
                 <div className="space-y-4">
                   <Leaderboard items={report.leaderboard} />
