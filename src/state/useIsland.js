@@ -12,7 +12,7 @@ export const EXPANDED_MODES = new Set(['input', 'drift', 'summary', 'resume', 'v
 
 const initialState = {
   mode: 'idle',
-  sprint: null, // { goal, durationMin, startedAt }
+  sprint: null, // { goal, durationMin, startedAt, mode: 'sprint' | 'ambient' }
   drift: null, // { app, confidence, nudge, reason, key, source, latencyMs, driftType }
   summary: null, // sessionReport() of the sprint that just finished
   resume: null, // resume snapshot + note
@@ -51,8 +51,9 @@ function reducer(state, action) {
         prefill: null,
         sprint: {
           goal: action.goal,
-          durationMin: action.durationMin,
+          durationMin: action.durationMin, // null in Ambient Mode (no timer)
           startedAt: Date.now(),
+          mode: action.mode === 'ambient' ? 'ambient' : 'sprint',
         },
       };
 

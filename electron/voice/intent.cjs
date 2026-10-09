@@ -62,10 +62,16 @@ const clampMin = (v) => Math.max(1, Math.min(MAX_MIN, Math.round(v)));
 // Strip the spoken scaffolding around the actual task.
 const LEAD_INS =
   /^(?:(?:ok(?:ay)?|so|alright|hey|um+|uh+)[,\s]+)*(?:let'?s|let\s+me|i\s+(?:want|need|have|'?m\s+going|am\s+going|'?ll)\s+to|i'?ll|give\s+me|help\s+me|time\s+to|we\s+(?:need|have)\s+to|i\s+want|spend|work\s+on|focus\s+on|for)\b[\s,]*/i;
+// "start a (new focus) session on ..." talks about the sprint, not the task.
+const SESSION_TALK =
+  /^(?:start|begin|do|set\s+up|have)\s+(?:a|an|the|my)?\s*(?:new\s+)?(?:focus\s+|work\s+|deep\s+work\s+)?(?:session|sprint|block|timer)\b(?:\s+(?:on|for|to|of|with))?[\s,]*/i;
 function cleanGoal(text = '') {
   let g = text.trim();
   for (let i = 0; i < 4; i++) {
-    const next = g.replace(LEAD_INS, '').replace(/^(?:spend|work\s+on|focus\s+on|for|on|of|to|and)\b[\s,]*/i, '');
+    const next = g
+      .replace(LEAD_INS, '')
+      .replace(SESSION_TALK, '')
+      .replace(/^(?:spend|work\s+on|focus\s+on|for|on|of|to|and)\b[\s,]*/i, '');
     if (next === g) break;
     g = next;
   }
@@ -88,7 +94,7 @@ const SCHEMA = {
 };
 
 const SYSTEM = `You turn a developer's spoken request into a focus sprint. Reply with JSON only.
-- goal: a short task title (max 8 words), imperative, sentence case, no time phrases, keep technical names exactly as spoken. Use "&" to join two tasks.
+- goal: a short task title (max 8 words), imperative, sentence case, keep technical names exactly as spoken. Use "&" to join two tasks. Never include the duration or words about the sprint itself ("start a session", "timer", "minutes").
 - durationMinutes: the length they asked for in minutes, or 0 if they did not say one.
 - domain: the closest area of work.
 
@@ -98,7 +104,9 @@ Examples:
 "okay I need to write the README for the hackathon"
 {"goal":"Write the hackathon README","durationMinutes":0,"domain":"Docs"}
 "give me an hour to build the settings page in React"
-{"goal":"Build the React settings page","durationMinutes":60,"domain":"Frontend"}`;
+{"goal":"Build the React settings page","durationMinutes":60,"domain":"Frontend"}
+"Start a 45 minute session on the onboarding emails."
+{"goal":"Work on the onboarding emails","durationMinutes":45,"domain":"Other"}`;
 
 async function extractIntent(transcript, { ollama, ready, timeoutMs = 6000 } = {}) {
   const text = (transcript || '').trim();

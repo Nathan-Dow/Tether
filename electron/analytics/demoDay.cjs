@@ -43,7 +43,7 @@ const ctx = ([process, title]) => {
 };
 
 // phases: [kind, minutes, pickIndex?]
-function buildSession({ id, goal, start, durationMin, phases, seed }) {
+function buildSession({ id, goal, start, durationMin, phases, seed, mode = 'sprint' }) {
   const r = rng(seed);
   const between = (a, b) => a + r() * (b - a);
   const segments = [];
@@ -122,7 +122,8 @@ function buildSession({ id, goal, start, durationMin, phases, seed }) {
     demo: true,
     id,
     goal,
-    durationMin,
+    mode,
+    durationMin: mode === 'ambient' ? null : durationMin,
     startedAt: start,
     endedAt: start + durationMin * MIN,
     segments,
@@ -177,6 +178,16 @@ function demoSessions(day = Date.now()) {
       durationMin: 45,
       seed: 3,
       phases: [['work', 22], ['idle', 4], ['work', 8], ['drift', 3, 2], ['work', 8]],
+    }),
+    // An afternoon in Ambient Mode: no goal or timer, just quiet logging.
+    buildSession({
+      id: 'demo-ambient',
+      goal: 'Ambient',
+      mode: 'ambient',
+      start: at(day, 15, 30),
+      durationMin: 75,
+      seed: 4,
+      phases: [['work', 20], ['drift', 9, 2], ['work', 14], ['thrash', 5], ['drift', 6, 1], ['work', 21]],
     }),
   );
   return sessions;

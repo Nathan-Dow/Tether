@@ -440,6 +440,7 @@ const resumeTracker = new ResumeTracker({
 
 // Off-task = a confident distraction, the desktop, or no input for 2 min.
 function trackResume(entry) {
+  if (recorder?.session?.mode === 'ambient') return; // Ambient Mode never pops up
   if (!recorder?.session) return;
   const idleS = powerMonitor.getSystemIdleTime();
   const away = idleS >= AWAY_AFTER_S;

@@ -18,6 +18,12 @@ const REALERT_AFTER_MS = 60_000; // still on the same distraction after dismissi
 const HEALTH_EVERY_MS = 30_000;
 const DRIFT_TYPES = ['none', 'informational', 'social', 'debugging'];
 
+// Ambient Mode has no declared goal: windows are judged against general
+// productive work, on a slower tick, and drift is only logged (no alerts).
+const AMBIENT_GOAL = 'Productive work: coding, writing, research, documentation or design';
+const AMBIENT_INTERVAL_MS = 10_000;
+const isAmbient = (sprint) => sprint?.mode === 'ambient';
+
 // What the model is asked for. Field order matters for small models: the
 // reason comes first so the model "thinks" before it commits to a boolean, and
 // it answers "related?" rather than "distracted?" (1.5B models lean towards
@@ -135,7 +141,8 @@ class Evaluator extends EventEmitter {
   }
 
   setSprint(sprint) {
-    const sameGoal = sprint && this.sprint && sprint.goal === this.sprint.goal;
+    const sameGoal =
+      sprint && this.sprint && sprint.goal === this.sprint.goal && isAmbient(sprint) === isAmbient(this.sprint);
     if (!sameGoal) this.reset(sprint);
     else this.sprint = sprint;
 
@@ -144,7 +151,7 @@ class Evaluator extends EventEmitter {
     if (!sprint) return;
 
     if (this.health.status === 'ready') ollama.warmUp(SYSTEM);
-    this.timer = setInterval(() => this.tick(), this.intervalMs);
+    this.timer = setInterval(() => this.tick(), isAmbient(sprint) ? AMBIENT_INTERVAL_MS : this.intervalMs);
     setTimeout(() => this.tick(), 1500); // first verdict soon after starting
   }
 
@@ -158,7 +165,7 @@ class Evaluator extends EventEmitter {
 
   async judge(current, state) {
     const key = keyOf(current);
-    const goal = this.sprint.goal;
+    const goal = isAmbient(this.sprint) ? AMBIENT_GOAL : this.sprint.goal;
 
     // Idle desktops and dev tools (editor/terminal) are decided by rules: the
     // tools ARE the work, and it spares an inference every tick.
@@ -235,7 +242,8 @@ class Evaluator extends EventEmitter {
       if (!confident) this.alertedKey = null;
 
       const fresh = this.alertedKey !== key || entry.at - this.alertedAt >= REALERT_AFTER_MS;
-      if (this.streak >= DRIFT_STREAK && fresh) {
+      // Ambient Mode stays silent: drift is in the verdict log, not on screen.
+      if (this.streak >= DRIFT_STREAK && fresh && !isAmbient(sprint)) {
         this.alertedKey = key;
         this.alertedAt = entry.at;
         this.emit('drift', entry);
@@ -246,4 +254,4 @@ class Evaluator extends EventEmitter {
   }
 }
 
-module.exports = { Evaluator, normalize, formatPrompt, SYSTEM, SCHEMA };
+module.exports = { Evaluator, normalize, formatPrompt, SYSTEM, SCHEMA, AMBIENT_GOAL };

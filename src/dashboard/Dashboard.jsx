@@ -14,6 +14,7 @@ import { bridge, modKey } from '../lib/bridge.js';
 import { fmtDuration } from '../lib/format.js';
 import DayRibbon from './DayRibbon.jsx';
 import ActivityStream from './ActivityStream.jsx';
+import AmbientBuckets from './AmbientBuckets.jsx';
 import { Episodes, Leaderboard, SessionList } from './SidePanels.jsx';
 
 function TopBar({ demo, setDemo, onClear, day }) {
@@ -227,6 +228,7 @@ export default function Dashboard() {
             <>
               <KpiRow kpis={report.kpis} episodes={report.episodes} />
               <DayRibbon sessions={report.sessions} selectedT={selectedT} onSelect={setSelectedT} />
+              <AmbientBuckets sessions={report.sessions} />
               <div className="grid grid-cols-3 items-start gap-4">
                 <ActivityStream
                   className="col-span-2"

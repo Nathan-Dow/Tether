@@ -11,6 +11,9 @@ const WHISPER_DIR = process.env.TETHER_WHISPER_DIR || path.join(__dirname, '..',
 const CLI_PATH = path.join(WHISPER_DIR, 'bin', 'whisper-cli.exe');
 const MODEL_PATH = path.join(WHISPER_DIR, 'models', 'ggml-base.en-q5_1.bin');
 const SAMPLE_RATE = 16_000; // what Whisper expects
+// Spelling hints for developer words Whisper otherwise mishears
+// ("cloud code" for Claude Code).
+const VOCAB = 'Sprint goal for a developer: Claude Code, VS Code, GitHub, README, API, auth, OAuth, JWT, Ollama, React, Next.js, Drizzle, Postgres, TypeScript, npm, Electron.';
 
 function status() {
   if (process.platform !== 'win32') return { ready: false, reason: 'unsupported' };
@@ -58,7 +61,7 @@ function audioCtxFor(seconds) {
 
 function runCli(wavPath, seconds, timeoutMs) {
   const threads = String(Math.max(1, Math.min(8, os.cpus().length - 2)));
-  const args = ['-m', MODEL_PATH, '-f', wavPath, '-l', 'en', '-t', threads, '-ac', String(audioCtxFor(seconds)), '-nt', '-np'];
+  const args = ['-m', MODEL_PATH, '-f', wavPath, '-l', 'en', '-t', threads, '-ac', String(audioCtxFor(seconds)), '--prompt', VOCAB, '-nt', '-np'];
   return new Promise((resolve, reject) => {
     execFile(CLI_PATH, args, { timeout: timeoutMs, windowsHide: true, cwd: path.dirname(CLI_PATH) }, (err, stdout) =>
       err ? reject(err) : resolve(stdout),

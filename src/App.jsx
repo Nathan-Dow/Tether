@@ -183,6 +183,9 @@ export default function App() {
               prefill={prefill}
               onVoice={() => startVoice({ hold: true })}
               onStart={(goal, durationMin) => dispatch({ type: 'START_SPRINT', goal, durationMin })}
+              onStartAmbient={() =>
+                dispatch({ type: 'START_SPRINT', goal: 'Ambient', durationMin: null, mode: 'ambient' })
+              }
               onCancel={() => dispatch({ type: 'CANCEL_INPUT' })}
               onEnd={() => dispatch({ type: 'END_SPRINT' })}
             />

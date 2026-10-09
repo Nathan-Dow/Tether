@@ -75,10 +75,11 @@ test('idle time is excluded from active time and breaks deep work', () => {
   assert.equal(r.deepWorkMs, 6 * MIN); // the 4-minute stretch is too short
 });
 
-test('demo day: three sessions today and an upward trend', () => {
+test('demo day: three sprints and one ambient session today, and an upward trend', () => {
   const day = new Date(2026, 9, 10, 18, 0).getTime();
   const rep = dayReport(demoSessions(day), { day });
-  assert.equal(rep.sessions.length, 3);
+  assert.equal(rep.sessions.length, 4);
+  assert.equal(rep.sessions.filter((s) => s.mode === 'ambient').length, 1);
   assert.ok(rep.kpis.flowScore > 0 && rep.kpis.flowScore <= 100);
   assert.ok(rep.kpis.flowTrend > 0, `trend ${rep.kpis.flowTrend}`);
   assert.ok(rep.kpis.deepWorkMs > 60 * MIN);

@@ -31,6 +31,9 @@ test('the spoken scaffolding is stripped from the goal', () => {
   assert.equal(goal('I am going to fix the login bug for twenty five minutes'), 'Fix the login bug');
   assert.equal(goal('okay so I need to write the README'), 'Write the README');
   assert.equal(goal('half an hour of code review'), 'Code review');
+  assert.equal(goal('Start a 30 minute session on Claude Code.'), 'Claude Code');
+  assert.equal(goal('Begin a sprint on the API docs'), 'The API docs');
+  assert.equal(goal('Start the deploy script'), 'Start the deploy script');
 });
 
 test('without the model, the transcript becomes the goal and 25 min is the default', async () => {

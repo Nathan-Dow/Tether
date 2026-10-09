@@ -8,6 +8,7 @@
 //   idle   desktop / away from the keyboard
 const { heuristicVerdict } = require('../ai/heuristics.cjs');
 const { labelVerdict } = require('./labels.cjs');
+const { GROUPS, groupOf } = require('./groups.cjs');
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -308,6 +309,40 @@ function leaderboardOf(segments, limit = 8) {
     .map(([site, v]) => ({ site, ms: v, share: total ? v / total : 0 }));
 }
 
+// Ambient Mode: rolling 15-minute buckets (on the clock's quarter hours) of
+// what kind of activity filled them, plus how much of it was drift.
+const BUCKET_MS = 15 * MIN;
+function ambientBucketsOf(segments, start, end) {
+  const out = [];
+  for (let a = Math.floor(start / BUCKET_MS) * BUCKET_MS; a < end; a += BUCKET_MS) {
+    const b = a + BUCKET_MS;
+    const ms = {};
+    let driftMs = 0;
+    for (const seg of segments) {
+      const o = overlapMs(seg, a, b);
+      if (!o) continue;
+      const g = groupOf(seg);
+      ms[g] = (ms[g] || 0) + o;
+      if (seg.state === 'drift') driftMs += o;
+    }
+    const groups = Object.entries(ms)
+      .sort((x, y) => y[1] - x[1])
+      .map(([key, v]) => ({ key, label: GROUPS[key], ms: v }));
+    if (!groups.length) continue;
+    const active = groups.filter((g) => g.key !== 'away');
+    out.push({
+      t: a,
+      end: b,
+      groups,
+      top: (active[0] ?? groups[0]).key,
+      topLabel: (active[0] ?? groups[0]).label,
+      activeMs: sum(active.map((g) => g.ms)),
+      driftMs,
+    });
+  }
+  return out;
+}
+
 function velocityStatus(perHour) {
   if (perHour == null) return null;
   if (perHour >= 40) return 'thrashing';
@@ -333,6 +368,7 @@ function sessionReport(session, { labels } = {}) {
   return {
     id: session.id,
     goal: session.goal,
+    mode: session.mode === 'ambient' ? 'ambient' : 'sprint',
     demo: Boolean(session.demo),
     startedAt: start,
     endedAt: end,
@@ -349,6 +385,7 @@ function sessionReport(session, { labels } = {}) {
     episodes,
     leaderboard: leaderboardOf(segments),
     timeline: timelineOf(segments, start, end),
+    buckets: session.mode === 'ambient' ? ambientBucketsOf(segments, start, end) : [],
     alerts: (session.alerts || []).length,
     modelVerdicts: (session.verdicts || []).filter((v) => v.source === 'model').length,
     stream: segments.map((s) => ({
@@ -359,6 +396,7 @@ function sessionReport(session, { labels } = {}) {
       title: s.title,
       site: s.site,
       category: s.category,
+      group: GROUPS[groupOf(s)],
       state: s.state,
       verdict: s.verdict && {
         source: s.verdict.source,
@@ -425,4 +463,4 @@ function dayReport(sessions, { day = Date.now(), labels } = {}) {
   };
 }
 
-module.exports = { CFG, siteOf, annotate, sessionReport, dayReport };
+module.exports = { CFG, siteOf, annotate, ambientBucketsOf, sessionReport, dayReport };

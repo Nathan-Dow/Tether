@@ -30,7 +30,8 @@ class SessionRecorder {
       version: 1,
       id: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`,
       goal: sprint.goal,
-      durationMin: sprint.durationMin,
+      mode: sprint.mode === 'ambient' ? 'ambient' : 'sprint',
+      durationMin: sprint.durationMin ?? null, // null in Ambient Mode: no timer
       startedAt: sprint.startedAt,
       endedAt: null,
       segments: [],
@@ -48,7 +49,7 @@ class SessionRecorder {
     const s = this.session;
     if (!s) return null;
     this.session = null;
-    s.endedAt = Math.min(now, s.startedAt + s.durationMin * 60_000);
+    s.endedAt = s.durationMin ? Math.min(now, s.startedAt + s.durationMin * 60_000) : now;
     const last = s.segments.at(-1);
     if (last) last.end = Math.max(last.end, s.endedAt);
     this.store.save(s);

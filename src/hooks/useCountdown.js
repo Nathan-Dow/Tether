@@ -10,7 +10,8 @@ function format(ms) {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-// Returns { label, remainingMs, done, progress } for the active sprint.
+// Returns { label, remainingMs, done, progress } for the active sprint. In
+// Ambient Mode there's no timer, so the label counts up instead.
 export function useCountdown(sprint) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -22,6 +23,9 @@ export function useCountdown(sprint) {
   }, [sprint]);
 
   if (!sprint) return { label: '--:--', remainingMs: 0, done: false, progress: 0 };
+  if (!sprint.durationMin) {
+    return { label: format(Math.max(0, now - sprint.startedAt)), remainingMs: Infinity, done: false, progress: 0 };
+  }
 
   const durationMs = sprint.durationMin * 60_000;
   const remainingMs = Math.max(0, sprint.startedAt + durationMs - now);

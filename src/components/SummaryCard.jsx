@@ -23,7 +23,7 @@ export default function SummaryCard({ report, onClose }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-emerald-300 uppercase">
             <CircleCheck size={14} />
-            Sprint complete
+            {report.mode === 'ambient' ? 'Ambient session ended' : 'Sprint complete'}
           </div>
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11px] text-zinc-500 tabular-nums">
