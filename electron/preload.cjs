@@ -45,6 +45,11 @@ contextBridge.exposeInMainWorld('tether', {
   clearHistory: () => ipcRenderer.invoke('analytics:clear'),
   onSessionFinished: (cb) => subscribe('session:finished', cb),
 
+  // Resume Flow
+  onResume: (cb) => subscribe('resume:show', cb),
+  previewResume: () => ipcRenderer.send('resume:preview'),
+  copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
+
   // Calendar export for a finished sprint
   openGoogleCalendar: (id) => ipcRenderer.invoke('calendar:google', id),
   saveIcs: (id) => ipcRenderer.invoke('calendar:ics', id),

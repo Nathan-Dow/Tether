@@ -8,6 +8,7 @@ import CollapsedBar from './components/CollapsedBar.jsx';
 import GoalInput from './components/GoalInput.jsx';
 import DriftCard from './components/DriftCard.jsx';
 import SummaryCard from './components/SummaryCard.jsx';
+import ResumeCard from './components/ResumeCard.jsx';
 
 // Cross-fade between island contents while the shell springs to its new size.
 function View({ children }) {
@@ -25,7 +26,7 @@ function View({ children }) {
 }
 
 export default function App() {
-  const [{ mode, sprint, drift, summary }, dispatch] = useIsland();
+  const [{ mode, sprint, drift, summary, resume }, dispatch] = useIsland();
   const countdown = useCountdown(sprint);
   const [context, setContext] = useState(null);
   const [aiHealth, setAiHealth] = useState(null);
@@ -64,6 +65,9 @@ export default function App() {
     [dispatch],
   );
 
+  // Welcome-back note after coming back from an interruption.
+  useEffect(() => bridge.onResume((r) => dispatch({ type: 'RESUME', resume: r })), [dispatch]);
+
   // Drift alerts from the evaluator, plus every verdict so the warning can
   // clear itself once you're back on task.
   useEffect(() => {
@@ -91,7 +95,8 @@ export default function App() {
   }, [dispatch]);
 
   // In-island keyboard: Cmd/Ctrl+K input, Esc collapse, and rehearsal
-  // shortcuts Cmd/Ctrl+Shift+D (mock drift) / Cmd/Ctrl+Shift+S (demo summary).
+  // shortcuts Cmd/Ctrl+Shift+D (mock drift), Cmd/Ctrl+Shift+S (demo summary)
+  // and Cmd/Ctrl+Shift+R (resume note).
   useEffect(() => {
     const onKey = (e) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -119,10 +124,14 @@ export default function App() {
         bridge.getDayReport({ demo: true }).then((rep) => {
           if (rep?.sessions[0]) dispatch({ type: 'SHOW_SUMMARY', report: rep.sessions[0] });
         });
+      } else if (mod && e.shiftKey && key === 'r') {
+        e.preventDefault();
+        bridge.previewResume();
       } else if (key === 'escape') {
         if (mode === 'input') dispatch({ type: 'CANCEL_INPUT' });
         else if (mode === 'drift') dispatch({ type: 'DISMISS_DRIFT' });
         else if (mode === 'summary') dispatch({ type: 'CLOSE_SUMMARY' });
+        else if (mode === 'resume') dispatch({ type: 'CLOSE_RESUME' });
       } else if (key === 'f12') {
         bridge.toggleDevTools();
       }
@@ -164,6 +173,12 @@ export default function App() {
         {mode === 'summary' && summary && (
           <View key="summary">
             <SummaryCard report={summary} onClose={() => dispatch({ type: 'CLOSE_SUMMARY' })} />
+          </View>
+        )}
+
+        {mode === 'resume' && resume && (
+          <View key="resume">
+            <ResumeCard resume={resume} onClose={() => dispatch({ type: 'CLOSE_RESUME' })} />
           </View>
         )}
 

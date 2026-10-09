@@ -28,6 +28,9 @@ const fallback = {
   getLastSession: async () => null,
   clearHistory: async () => true,
   onSessionFinished: unsub,
+  onResume: unsub,
+  previewResume: noop,
+  copyText: async (text) => navigator.clipboard.writeText(text).then(() => true),
   openGoogleCalendar: async () => ({ ok: false }),
   saveIcs: async () => ({ ok: false }),
 };

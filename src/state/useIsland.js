@@ -6,13 +6,15 @@ import { useReducer } from 'react';
 //   flow    — sprint running, collapsed with countdown
 //   drift   — expanded amber warning
 //   summary — expanded post-sprint breakdown + calendar export
-export const EXPANDED_MODES = new Set(['input', 'drift', 'summary']);
+//   resume  — expanded "welcome back" note after an interruption
+export const EXPANDED_MODES = new Set(['input', 'drift', 'summary', 'resume']);
 
 const initialState = {
   mode: 'idle',
   sprint: null, // { goal, durationMin, startedAt }
   drift: null, // { app, confidence, nudge, reason, key, source, latencyMs, driftType }
   summary: null, // sessionReport() of the sprint that just finished
+  resume: null, // resume snapshot + note
 };
 
 function restingMode(state) {
@@ -62,6 +64,14 @@ function reducer(state, action) {
     case 'SHOW_SUMMARY':
       // The sprint is over (time's up or ended early); its report replaces it.
       return { ...state, mode: 'summary', sprint: null, drift: null, summary: action.report };
+
+    case 'RESUME':
+      // Don't cover the goal input or a sprint summary.
+      if (state.mode === 'input' || state.mode === 'summary') return state;
+      return { ...state, mode: 'resume', drift: null, resume: action.resume };
+
+    case 'CLOSE_RESUME':
+      return { ...state, mode: restingMode(state), resume: null };
 
     case 'CLOSE_SUMMARY':
       return { ...state, mode: restingMode(state), summary: null };

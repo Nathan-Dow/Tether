@@ -5,6 +5,7 @@ const path = require('node:path');
 const {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   globalShortcut,
@@ -22,6 +23,8 @@ const { SessionRecorder } = require('./analytics/recorder.cjs');
 const { sessionReport, dayReport } = require('./analytics/metrics.cjs');
 const { demoSessions } = require('./analytics/demoDay.cjs');
 const { googleCalendarUrl, icsFile, icsFileName } = require('./analytics/calendar.cjs');
+const { ResumeTracker, buildSnapshot, resumePrompt, writeNote } = require('./analytics/resume.cjs');
+const ollama = require('./ai/ollama.cjs');
 
 const isMac = process.platform === 'darwin';
 const isDev = !app.isPackaged && process.env.TETHER_PROD !== '1';
@@ -150,6 +153,9 @@ function createWindow() {
     },
   });
 
+  // No menu: its hidden accelerators (Ctrl+W close, Ctrl+R reload) are a
+  // stage hazard, and the island handles its own shortcuts.
+  win.removeMenu();
   win.setAlwaysOnTop(true, 'screen-saver');
   if (isMac) win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
@@ -286,6 +292,7 @@ function startEvaluator() {
   evaluator.on('verdict', (entry) => {
     recorder?.onVerdict(entry);
     win?.webContents.send('eval:verdict', entry);
+    trackResume(entry);
   });
   evaluator.on('drift', (entry) => {
     recorder?.onAlert(entry);
@@ -298,6 +305,7 @@ function startEvaluator() {
 
 ipcMain.on('sprint:set', (_e, sprint) => {
   if (sprint) {
+    if (recorder?.session?.startedAt !== sprint.startedAt) resumeTracker.reset();
     recorder?.start(sprint);
     const current = daemon?.getState().current;
     if (current) recorder?.onContext(current);
@@ -391,6 +399,52 @@ ipcMain.handle('analytics:clear', async (e) => {
   if (response !== 0) return false;
   store?.clear();
   lastReport = null;
+  return true;
+});
+
+// ---------------------------------------------------------------------------
+// Resume Flow: a welcome-back note after an interruption
+// ---------------------------------------------------------------------------
+
+const AWAY_AFTER_S = 120;
+const resumeTracker = new ResumeTracker({
+  minAwayMs: (Number(process.env.TETHER_RESUME_MIN) || 5) * 60_000,
+});
+
+// Off-task = a confident distraction, the desktop, or no input for 2 min.
+function trackResume(entry) {
+  if (!recorder?.session) return;
+  const idleS = powerMonitor.getSystemIdleTime();
+  const away = idleS >= AWAY_AFTER_S;
+  const onTask =
+    !away && entry.category !== 'idle' && !(entry.isDistracted && entry.confidence >= 0.6);
+  const hit = resumeTracker.update({
+    at: entry.at,
+    onTask,
+    offSince: away ? entry.at - idleS * 1000 : entry.at,
+  });
+  if (hit) showResume(recorder.session, Date.now());
+}
+
+async function showResume(session, now) {
+  const snapshot = buildSnapshot(session, { now });
+  const note = await writeNote(snapshot, {
+    ollama,
+    ready: evaluator?.health.status === 'ready',
+  });
+  win?.webContents.send('resume:show', { ...snapshot, ...note, prompt: resumePrompt(snapshot) });
+}
+
+// Ctrl/Cmd+Shift+R rehearsal: the live sprint, or the demo day's debugging
+// sprint right after its YouTube detour.
+ipcMain.on('resume:preview', () => {
+  if (recorder?.session) return showResume(recorder.session, Date.now());
+  const demo = demoSessions().find((s) => s.id === 'demo-2');
+  showResume(demo, demo.startedAt + 32 * 60_000 + 10_000);
+});
+
+ipcMain.handle('clipboard:write', (_e, text) => {
+  clipboard.writeText(String(text));
   return true;
 });
 
