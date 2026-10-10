@@ -356,6 +356,7 @@ ipcMain.on('sprint:set', (_e, sprint) => {
 
 // Vision Sentinel: smartphone pickups from the island's webcam sampler.
 ipcMain.on('vision:phone', (_e, event) => recorder?.onPhone(event ?? {}));
+ipcMain.on('vision:sample', (_e, sample) => recorder?.onVisionSample(sample ?? {}));
 
 ipcMain.on('eval:allow', (_e, key) => {
   evaluator?.allow(key);

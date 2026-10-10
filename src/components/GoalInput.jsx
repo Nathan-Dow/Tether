@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CornerDownLeft, LayoutDashboard, Mic, Play, Radar, Target, X } from 'lucide-react';
+import { CornerDownLeft, Eye, EyeOff, LayoutDashboard, Mic, Play, Radar, Target, X } from 'lucide-react';
 import { bridge } from '../lib/bridge.js';
 import AiStatus from './AiStatus.jsx';
 
@@ -38,7 +38,18 @@ function ModeToggle({ kind, setKind }) {
 
 // prefill: a spoken goal ({ goal, durationMin, domain, transcript }). It
 // starts on its own after a short countdown unless you touch anything.
-export default function GoalInput({ sprint, aiHealth, prefill, onStart, onStartAmbient, onCancel, onEnd, onVoice }) {
+export default function GoalInput({
+  sprint,
+  aiHealth,
+  prefill,
+  visionOn,
+  onToggleVision,
+  onStart,
+  onStartAmbient,
+  onCancel,
+  onEnd,
+  onVoice,
+}) {
   const [kind, setKind] = useState(!prefill && sprint?.mode === 'ambient' ? 'ambient' : 'sprint');
   const ambientOn = sprint?.mode === 'ambient';
   const [goal, setGoal] = useState(prefill?.goal ?? sprint?.goal ?? '');
@@ -109,6 +120,23 @@ export default function GoalInput({ sprint, aiHealth, prefill, onStart, onStartA
         <div className="flex min-w-0 items-center gap-1.5 pl-3">
           {/* A spoken goal needs the room for its domain chip. */}
           {!prefill && <AiStatus health={aiHealth} />}
+          <button
+            type="button"
+            onClick={onToggleVision}
+            aria-pressed={visionOn}
+            title={
+              visionOn
+                ? 'Vision Sentinel on: webcam presence, gaze and phone checks during sprints (click to turn off)'
+                : 'Vision Sentinel off: Tether works without a webcam (click to add presence, gaze and phone checks)'
+            }
+            className={`flex size-6 shrink-0 items-center justify-center rounded-full transition-colors ${
+              visionOn
+                ? 'bg-emerald-400/15 text-emerald-300 hover:bg-emerald-400/25'
+                : 'text-zinc-500 hover:bg-white/10 hover:text-zinc-200'
+            }`}
+          >
+            {visionOn ? <Eye size={13} /> : <EyeOff size={13} />}
+          </button>
           <button
             type="button"
             onClick={() => bridge.openDashboard()}

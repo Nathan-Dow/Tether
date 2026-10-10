@@ -86,7 +86,24 @@ export default function App() {
 
   // Vision Sentinel: webcam presence + smartphone corroboration during a
   // sprint. A pickup morphs the island amber and lands in the Friction ledger.
-  const vision = useVisionSentinel({ active: Boolean(activeSprint) });
+  // Off by default: Tether works fully without a webcam. Remembered per machine.
+  const [visionOn, setVisionOn] = useState(() => {
+    try {
+      return localStorage.getItem('tether.vision') === 'on';
+    } catch {
+      return false;
+    }
+  });
+  const toggleVision = () =>
+    setVisionOn((on) => {
+      try {
+        localStorage.setItem('tether.vision', on ? 'off' : 'on');
+      } catch {
+        // storage unavailable: the toggle still works for this run
+      }
+      return !on;
+    });
+  const vision = useVisionSentinel({ active: Boolean(activeSprint) && visionOn });
   const toggleDemoRef = useRef(vision.toggleDemo);
   toggleDemoRef.current = vision.toggleDemo;
   const { phoneDetected, cause: phoneCause, source: phoneSource, clearDemo } = vision;
@@ -215,6 +232,8 @@ export default function App() {
               sprint={sprint}
               aiHealth={aiHealth}
               prefill={prefill}
+              visionOn={visionOn}
+              onToggleVision={toggleVision}
               onVoice={() => startVoice({ hold: true })}
               onStart={(goal, durationMin) => dispatch({ type: 'START_SPRINT', goal, durationMin })}
               onStartAmbient={() =>

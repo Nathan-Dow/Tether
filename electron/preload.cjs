@@ -61,6 +61,8 @@ contextBridge.exposeInMainWorld('tether', {
 
   // Vision Sentinel: { phoneDetected, source: 'camera' | 'demo' }
   reportPhone: (event) => ipcRenderer.send('vision:phone', event),
+  // { at, present, gaze } per sample, or { status: 'on' | 'unavailable' }
+  reportVisionSample: (sample) => ipcRenderer.send('vision:sample', sample),
 
   // Calendar export for a finished sprint
   openGoogleCalendar: (id) => ipcRenderer.invoke('calendar:google', id),

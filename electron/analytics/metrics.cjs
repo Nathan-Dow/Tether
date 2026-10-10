@@ -6,6 +6,9 @@
 //   debug  on-task, but the terminal/editor title shows errors
 //   drift  off-task (confident distracted verdict)
 //   idle   desktop / away from the keyboard
+//
+// With the Vision Sentinel on, phone time (a phone in frame, or head down
+// for a while) overrides whatever window was in front: it's drift.
 const { heuristicVerdict } = require('../ai/heuristics.cjs');
 const { labelVerdict } = require('./labels.cjs');
 const { GROUPS, groupOf } = require('./groups.cjs');
@@ -93,7 +96,59 @@ function annotate(session, { labels = {} } = {}) {
     }
     out.push({ ...seg, state, verdict, site });
   }
-  return { start, end, segments: out };
+  return { start, end, segments: overlayPhone(out, session.phone, end) };
+}
+
+const PHONE_SITE = { phone: 'Smartphone', 'head-down': 'Head down (phone in lap?)' };
+
+function phoneSegment(seg, a, b, p) {
+  const site = p.source === 'demo' ? 'Smartphone (demo)' : (PHONE_SITE[p.cause] ?? 'Smartphone');
+  return {
+    ...seg,
+    key: `Phone|${site}`,
+    start: a,
+    end: b,
+    ms: b - a,
+    app: 'Smartphone',
+    label: site,
+    title: site,
+    category: 'phone',
+    errorSignal: false,
+    site,
+    state: 'drift',
+    verdict: {
+      isDistracted: true,
+      confidence: 0.9,
+      driftType: 'physical',
+      source: 'vision',
+      reason: p.cause === 'head-down' ? 'Head down for ~14 s (Vision Sentinel)' : 'Phone in frame (Vision Sentinel)',
+    },
+  };
+}
+
+// Cut each phone span out of the windows it overlaps and mark it as drift,
+// so it counts against focus time, deep work, the ribbon and the flow score.
+function overlayPhone(segments, phone, end) {
+  const spans = (phone || [])
+    .map((p) => ({ ...p, end: Math.min(p.end ?? end, end) }))
+    .filter((p) => p.end > p.start)
+    .sort((a, b) => a.start - b.start);
+  if (!spans.length) return segments;
+  const out = [];
+  for (const seg of segments) {
+    let cur = seg.start;
+    for (const p of spans) {
+      if (p.end <= cur || p.start >= seg.end) continue;
+      const a = Math.max(p.start, cur);
+      const b = Math.min(p.end, seg.end);
+      if (a > cur) out.push({ ...seg, start: cur, end: a, ms: a - cur });
+      out.push(phoneSegment(seg, a, b, p));
+      cur = b;
+    }
+    if (cur === seg.start) out.push(seg);
+    else if (cur < seg.end) out.push({ ...seg, start: cur, end: seg.end, ms: seg.end - cur });
+  }
+  return out;
 }
 
 function totalsOf(segments) {
@@ -213,11 +268,12 @@ function episodesOf(segments) {
       siteMs[p.site] = (siteMs[p.site] || 0) + p.ms;
     }
     const durationMs = sum(run.parts.map((p) => p.ms));
-    if (durationMs < CFG.minEpisodeMs) continue;
-    const after = segments.find((s) => s.start >= run.end && s.state !== 'drift');
     const kind = dominant(typeMs);
+    // Every phone pickup is listed; short window peeks are noise.
+    if (durationMs < CFG.minEpisodeMs && kind !== 'physical') continue;
+    const after = segments.find((s) => s.start >= run.end && s.state !== 'drift');
     episodes.push({
-      kind: kind === 'informational' || kind === 'debugging' ? kind : 'social',
+      kind: ['informational', 'debugging', 'physical'].includes(kind) ? kind : 'social',
       start: run.start,
       end: run.end,
       durationMs,
@@ -242,21 +298,58 @@ function episodesOf(segments) {
   return episodes.sort((a, b) => a.start - b.start);
 }
 
-// Vision Sentinel pickups land in the Friction ledger as "physical" drift.
-function phoneEpisodesOf(session, end) {
-  return (session.phone || []).map((p) => {
-    const stop = p.end ?? end;
-    return {
-      kind: 'physical',
-      start: p.start,
-      end: stop,
-      durationMs: Math.max(0, stop - p.start),
-      sites: [
-        p.source === 'demo' ? 'Smartphone (demo)' : p.cause === 'head-down' ? 'Head down (phone in lap?)' : 'Smartphone',
-      ],
-      returnedToGoal: p.end != null,
-    };
-  });
+// Vision Sentinel summary for a session (null when it was off): how much of
+// the time you were at the desk, facing the screen, and on your phone.
+function visionOf(session, end) {
+  const v = session.vision;
+  if (!v?.enabled) return null;
+  const samples = v.samples || [];
+  const present = samples.filter((s) => s.present);
+  const gazeShare = (g) => (present.length ? present.filter((s) => s.gaze === g).length / present.length : null);
+  const spans = (session.phone || []).map((p) => ({ ...p, ms: Math.max(0, Math.min(p.end ?? end, end) - p.start) }));
+  const phone = spans.filter((p) => p.cause !== 'head-down');
+  const down = spans.filter((p) => p.cause === 'head-down');
+  return {
+    samples: samples.length,
+    presentSamples: present.length,
+    cameraOk: samples.length > 0,
+    presentShare: samples.length ? present.length / samples.length : null,
+    onScreenShare: gazeShare('screen'),
+    downShare: gazeShare('down'),
+    sideShare: gazeShare('side'),
+    pickups: phone.length,
+    phoneMs: sum(phone.map((p) => p.ms)),
+    headDowns: down.length,
+    headDownMs: sum(down.map((p) => p.ms)),
+    longestMs: Math.max(0, ...spans.map((p) => p.ms)),
+  };
+}
+
+// Day roll-up of visionOf(); shares are weighted by webcam samples.
+function visionDayOf(list) {
+  const on = list.filter(Boolean);
+  if (!on.length) return null;
+  const n = sum(on.map((v) => v.samples));
+  const np = sum(on.map((v) => v.presentSamples));
+  const w = (k, weight) => {
+    const total = sum(on.map(weight));
+    return total ? sum(on.map((v) => (v[k] ?? 0) * weight(v))) / total : null;
+  };
+  return {
+    sessions: on.length,
+    samples: n,
+    presentSamples: np,
+    cameraOk: n > 0,
+    presentShare: w('presentShare', (v) => v.samples),
+    onScreenShare: w('onScreenShare', (v) => v.presentSamples),
+    downShare: w('downShare', (v) => v.presentSamples),
+    sideShare: w('sideShare', (v) => v.presentSamples),
+    pickups: sum(on.map((v) => v.pickups)),
+    phoneMs: sum(on.map((v) => v.phoneMs)),
+    headDowns: sum(on.map((v) => v.headDowns)),
+    headDownMs: sum(on.map((v) => v.headDownMs)),
+    longestMs: Math.max(0, ...on.map((v) => v.longestMs)),
+  };
 }
 
 // Verified Deep Work: on-task stretches of >= deepMinMs. A single short peek
@@ -379,7 +472,7 @@ function sessionReport(session, { labels } = {}) {
   const switches = switchesOf(segments);
   const windows = cfiWindows(segments, switches, start, end);
   const cfi = weightedCfi(windows);
-  const episodes = [...episodesOf(segments), ...phoneEpisodesOf(session, end)].sort((a, b) => a.start - b.start);
+  const episodes = episodesOf(segments);
   const perHour = totals.activeMs ? switches.length / (totals.activeMs / HOUR) : null;
 
   return {
@@ -405,6 +498,7 @@ function sessionReport(session, { labels } = {}) {
     buckets: session.mode === 'ambient' ? ambientBucketsOf(segments, start, end) : [],
     alerts: (session.alerts || []).length,
     modelVerdicts: (session.verdicts || []).filter((v) => v.source === 'model').length,
+    vision: visionOf(session, end),
     stream: segments.map((s) => ({
       start: s.start,
       end: s.end,
@@ -477,6 +571,7 @@ function dayReport(sessions, { day = Date.now(), labels } = {}) {
       .slice(0, 8)
       .map(([site, ms]) => ({ site, ms, share: lbTotal ? ms / lbTotal : 0 })),
     episodes: reports.flatMap((r) => r.episodes.map((e) => ({ ...e, sessionId: r.id }))),
+    vision: visionDayOf(reports.map((r) => r.vision)),
   };
 }
 

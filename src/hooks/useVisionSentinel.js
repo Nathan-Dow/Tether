@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import { bridge } from '../lib/bridge.js';
 import { analyze, describe, GazeTracker, H, loadVision, PERSON_MIN, PHONE_MIN, W } from '../lib/vision.js';
 
-// Vision Sentinel: while a sprint runs, sample one 320x240 webcam frame every
+// Vision Sentinel (opt-in, the eye toggle in the goal card): while a sprint runs, sample one 320x240 webcam frame every
 // SAMPLE_MS and check, on-device, that you're at the desk, whether a phone is
 // in frame, and where your head is pointed. Frames never leave the renderer.
 //
@@ -32,6 +33,7 @@ export function useVisionSentinel({ active }) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     setStatus('starting');
+    bridge.reportVisionSample({ status: 'on' });
     (async () => {
       try {
         const [models, s] = await Promise.all([
@@ -51,6 +53,7 @@ export function useVisionSentinel({ active }) {
           const g = r.person >= PERSON_MIN || r.pose ? gaze.update(r.pose) : 'away';
           console.warn('[vision]', describe(r, g));
 
+          bridge.reportVisionSample({ at: Date.now(), present: g !== 'away', gaze: g });
           downStreak = g === 'down' ? downStreak + 1 : 0;
           setStatus(g === 'screen' ? 'locked' : g);
           setCameraCause(r.phone >= PHONE_MIN ? 'phone' : downStreak >= DOWN_SAMPLES ? 'head-down' : null);
@@ -65,7 +68,9 @@ export function useVisionSentinel({ active }) {
         }, FIRST_SAMPLE_MS);
       } catch (err) {
         console.warn('[vision] unavailable:', err.message);
-        if (!cancelled) setStatus('unavailable');
+        if (cancelled) return;
+        setStatus('unavailable');
+        bridge.reportVisionSample({ status: 'unavailable' });
       }
     })();
 

@@ -15,7 +15,7 @@ import { fmtDuration } from '../lib/format.js';
 import DayRibbon from './DayRibbon.jsx';
 import ActivityStream from './ActivityStream.jsx';
 import AmbientBuckets from './AmbientBuckets.jsx';
-import { Episodes, Leaderboard, SessionList } from './SidePanels.jsx';
+import { Episodes, Leaderboard, SessionList, VisionCard } from './SidePanels.jsx';
 
 function TopBar({ demo, setDemo, onClear, day }) {
   const tab = (active, onClick, Icon, label) => (
@@ -240,6 +240,7 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <Leaderboard items={report.leaderboard} />
                   <Episodes episodes={report.episodes} />
+                  <VisionCard vision={report.vision} />
                   <SessionList sessions={report.sessions} onSelect={setSelectedT} />
                 </div>
               </div>

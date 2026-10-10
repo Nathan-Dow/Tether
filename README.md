@@ -4,7 +4,7 @@
 
 Tether is a small pill that sits at the top of your Windows screen. Say or type what you're working on and Tether starts a sprint. A 1.5B-parameter model running on your own machine then checks the window in front of you every few seconds. If you drift into YouTube, Reddit or Discord, the island turns amber and nudges you back to your goal. When the sprint ends you get a breakdown of where your attention actually went.
 
-Site blockers have an obvious hole: you pick up your phone. So during a sprint, Tether's **Vision Sentinel** also glances at the webcam once every 7 seconds. It checks that you're at your desk, whether a phone is in your hand, and whether your head has been pointed down at your lap.
+Tether works fully without a webcam. But site blockers have an obvious hole: you pick up your phone. So if you turn on the optional **Vision Sentinel**, Tether also glances at the webcam once every 7 seconds during a sprint. It checks that you're at your desk, whether a phone is in your hand, and whether your head has been pointed down at your lap. Phone time then counts as drift in every metric, and the dashboard gains a presence and gaze report.
 
 All of this runs on your computer: the window watching, the webcam checks, the AI verdicts, speech-to-text and the analytics. Tether's AI never sends what you're doing to a server.
 
@@ -27,11 +27,11 @@ A focus copilot only works if it can see what you're doing, and "what you're doi
 - **Sprints.** Type a goal and pick a length (15, 25, 45 or 60 minutes, or your own), or speak it. A countdown runs in the pill with a heartbeat dot.
 - **Drift detection.** Every 8 s the foreground window is judged against your goal. Two confident "off-task" verdicts in a row (confidence ≥ 0.7) turn the island amber, show which app pulled you away, give a one-line nudge and play a soft two-note cue.
 - **Voice goals.** Press `Ctrl+Shift+Space` (from any app) or the mic button and say, for example, *"Let's spend 30 minutes refactoring the Drizzle schema and fixing the migration."* whisper.cpp transcribes it and the local model turns it into **"Refactor Drizzle schema & fix migration · 30 min · Database"**. The sprint starts after a 3-second countdown unless you touch it. Durations ("an hour and a half", "twenty five minutes") are parsed by rules, not left to the model's arithmetic.
-- **Vision Sentinel.** While a sprint runs, one 320×240 webcam frame every 7 s goes through two on-device MediaPipe models: an object detector (looking for a *person* and a *cell phone*) and a face landmarker (giving head pitch and yaw). The pill shows a small badge: `LOCKED` (at the desk, facing the screen), `DOWN`, `ASIDE`, `NO FACE`, `AWAY` or `NO CAM`.
+- **Vision Sentinel (optional).** Off by default. Turn it on with the **eye button** in the goal card, and Tether remembers the setting. Without it, no camera is used and nothing else changes. With it on, one 320×240 webcam frame every 7 s during a sprint goes through two on-device MediaPipe models: an object detector (looking for a *person* and a *cell phone*) and a face landmarker (giving head pitch and yaw). The pill shows a small badge: `LOCKED` (at the desk, facing the screen), `DOWN`, `ASIDE`, `NO FACE`, `AWAY` or `NO CAM`.
   - **Phone in frame** turns the island amber: *Physical drift · Smartphone detected · Return attention to sprint.* It clears when the phone goes down.
   - **Head down for two samples in a row (~14 s)** raises the same card as *"Head down: phone in your lap?"*. This catches the phone under the desk that the camera can't see.
   - **Looking to the side** only changes the badge. Glancing at a second monitor isn't drift.
-  - Every pickup is logged to the sprint and appears in the dashboard's **Friction debt** card as *Physical drift · phone*.
+  - **Phone time is drift, everywhere.** Each pickup is cut out of whatever window was in front and counted as drift. It lowers focus time, deep work and the flow score, turns its minutes amber on the timeline, shows up as **Smartphone** on the leak leaderboard, and is listed in **Friction debt** as *Physical drift · phone*. A browser blocker can't see any of this.
   - **Live preview** (`Ctrl+Alt+V`): a small window with the camera feed and what the models see drawn over it (boxes with scores, face points, head angles, inference time). It runs at ~5 fps only while it's open.
 - **Ambient Mode.** No goal, no timer and no pop-ups. Tether checks the window every 10 s against "general productive work", sorts activity into groups (Coding, Research / Docs, Messaging / Social, Video / Entertainment…) in 15-minute buckets, and quietly logs drift to the dashboard.
 - **Resume Flow.** After five or more minutes off-task or away, a "Welcome back" card rebuilds where you were from the last 15 minutes: the active file, the last terminal command, the docs you had open. It includes a one-line note from the local model and a copyable resume prompt.
@@ -43,6 +43,7 @@ A focus copilot only works if it can see what you're doing, and "what you're doi
 - **Cognitive leak leaderboard.** The apps and sites holding your off-task attention.
 - **Friction debt.** Rabbit holes ranked by how deep they went before you came back, including phone pickups from the Vision Sentinel.
 - **Ambient activity.** The 15-minute buckets from Ambient Mode.
+- **Vision Sentinel.** With the webcam on: time at the desk, eyes on screen (and how much was down or aside), phone pickups with time on the phone, and head-down spells. With it off, the card says so, because the rest of the dashboard doesn't need it.
 - **Sprints.** Every sprint with its scores and calendar export.
 - **Demo day.** A generated day of sprints, so every chart can be explored without recording one first.
 
@@ -56,6 +57,8 @@ All metrics are pure functions in [`electron/analytics/metrics.cjs`](electron/an
 | **Fragmentation index (CFI)** | Per 15-minute window, 100 minus penalties: 1 per switch inside the same domain, 8 per switch to a different domain, and 12 per on-task ↔ off-task flip within 90 s. Normalised to active time. |
 | **Flow score** | The average of on-task share (%) and the time-weighted CFI. |
 | **Debugging** | On-task time where the editor or terminal title shows errors. It is counted as work, not drift. |
+| **Phone time** (Vision Sentinel) | From when a phone appears in frame, or the head has been down for 2 samples in a row, until it's gone. It replaces the window in front for that span and counts as drift. Every pickup is listed, with no 30 s minimum. |
+| **At the desk / eyes on screen** | Share of webcam samples with a person in frame; of those, the share facing the screen rather than down or aside. |
 
 ## How it works
 
@@ -93,7 +96,7 @@ Measured on an Intel i5-12450H, laptop RTX 4060, 16 GB RAM, Windows 11, Ollama 0
 | Goal extraction from a transcript | about **200 ms** warm | voice input |
 | Vision Sentinel models, load | about **0.3–0.6 s** | first sprint start |
 | Vision Sentinel, one 320×240 frame (detector + face landmarker, CPU) | **100–175 ms** | inference time in the `Ctrl+Alt+V` preview |
-| Unit tests | **42/42** pass | `npm test` |
+| Unit tests | **45/45** pass | `npm test` |
 
 The eval fixture is small and hand-written. It checks that the prompt and schema behave, but it is not a benchmark. Two of its ten cases (editor and terminal) are decided by rules, not the model.
 
@@ -158,7 +161,7 @@ Stop it with `Ctrl+C` in that terminal. Without Ollama running, Tether still wor
 | Site labels | `%APPDATA%\tether\labels.json` | No |
 | Voice recordings | Temp WAV, deleted right after transcription | No |
 | Webcam frames | Memory only, replaced every 7 s; never written to disk | No |
-| Phone pickups | Start/end times in the sprint's session file | No |
+| Webcam check results and phone pickups | In the sprint's session file: one *present / gaze* reading per 7 s, plus pickup start and end times (only with the Vision Sentinel on) | No |
 | Calendar event | Your browser, only when you click "Google Calendar" | Yes, the summary you chose to export |
 
 **Clear history** on the dashboard deletes every recorded sprint.
@@ -170,7 +173,7 @@ Stop it with `Ctrl+C` in that terminal. Without Ollama running, Tether still wor
 - **English voice input.** `base.en` is an English-only model.
 - **A small model makes small-model mistakes.** That's why there are labels: one click tells Tether that a site is always work, or always not.
 - **The Vision Sentinel is a first version.** Its thresholds (phone score 0.35, head down 18° past your usual pose) are starting points and haven't been tested across many people, cameras or lighting. EfficientDet-Lite0 is small, so a phone held edge-on or mostly covered by a hand can be missed. Use the `Ctrl+Alt+V` preview to see what it sees.
-- **The camera light stays on during a sprint**, because the camera stays open between samples.
+- **The camera light stays on during a sprint** with the Vision Sentinel on, because the camera stays open between samples.
 - **`Ctrl+Shift+W` is taken while Tether runs**, so it won't close Chrome windows.
 
 ## Project layout

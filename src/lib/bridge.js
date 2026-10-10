@@ -39,6 +39,7 @@ const fallback = {
   openGoogleCalendar: async () => ({ ok: false }),
   saveIcs: async () => ({ ok: false }),
   reportPhone: noop,
+  reportVisionSample: noop,
 };
 
 export const bridge = window.tether ?? fallback;

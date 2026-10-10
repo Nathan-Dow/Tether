@@ -13,6 +13,7 @@ If you need to get back to about 2:45, cut the Resume Flow segment (1:50–2:15)
 - [ ] Turn the speaker volume up so the audio cues are audible in the recording.
 - [ ] Optional: do one short real sprint beforehand so the dashboard has your own data. Otherwise use **Demo day**.
 - [ ] Run `npm run setup:vision` once, while you still have internet.
+- [ ] Turn the Vision Sentinel **on**: `Ctrl+Shift+K`, click the **eye** at the top of the goal card (it turns green), then `Esc`. It's remembered, and it has to be on *before* the voice goal starts the sprint.
 - [ ] Camera check: press `Ctrl+Alt+V`. Your face points should be blue and the verdict should read `VISION SENTINEL: LOCKED`. Hold your phone up the way you'd scroll it, face-on to the camera, and find a grip that gets an amber **cell phone** box. Edge-on or hidden behind your fingers, it gets missed. Light your face from the front, not from a window behind you. Press `Ctrl+Alt+V` again to close it.
 - [ ] Have your phone on the desk, screen down, within reach.
 - [ ] Record at 1080p with system audio and the mic (Xbox Game Bar `Win+Alt+R`, or OBS).
@@ -57,7 +58,7 @@ Real drift detection takes about 16 s (two 8-second checks). Leave it in and spe
 3. Pick up your phone and scroll it. An amber **cell phone** box appears in the preview. Within about 7 s the island turns **amber**: *Physical drift · Smartphone detected · Return attention to sprint.*
 4. Put the phone down. The card clears on its own (or click **Back to it**). Close the preview with `Ctrl+Alt+V`.
 
-**Say:** "Blocking websites is easy to beat: you just pick up your phone. So once every 7 seconds Tether looks at one small webcam frame. Two models run on my CPU in about a tenth of a second: is someone at the desk, is there a phone in their hand, and where is their head pointed? Phone in hand, that's physical drift. Head down at my lap for fifteen seconds, same thing. The frame is checked in memory and thrown away. Nothing is saved, nothing is uploaded."
+**Say:** "Everything so far works without a webcam. But blocking websites is easy to beat: you just pick up your phone. So I've turned on the optional Vision Sentinel, and once every 7 seconds Tether looks at one small webcam frame. Two models run on my CPU in about a tenth of a second: is someone at the desk, is there a phone in their hand, and where is their head pointed? Phone in hand, that's physical drift. Head down at my lap for fifteen seconds, same thing. The frame is checked in memory and thrown away. Nothing is saved, nothing is uploaded."
 
 **Optional, if you have time:** with the preview open, look down at your lap. The face points turn amber and the verdict reads `HEAD DOWN`.
 
@@ -71,12 +72,15 @@ Real drift detection takes about 16 s (two 8-second checks). Leave it in and spe
 
 **Screen:** Open the island (`Ctrl+K`), click **End sprint** to show the **summary card** (deep flow, drift, flow score, ribbon), then click the **Dashboard** button. Switch to **Demo day** if your own data is thin. Then show, in order:
 1. The **Attention residue timeline**, hovering one amber minute.
-2. The **Cognitive leak leaderboard**.
-3. The **Friction debt** card: point at the **Physical drift · phone** row from a minute ago. This row comes from *your* sprint, so stay on today's data for this one, not Demo day.
-4. The **Activity stream**: click the State on a row and pick *Always on-task*, and the scores re-calculate.
-5. The **Ambient activity** card (15-minute buckets).
+2. The **Cognitive leak leaderboard**: **Smartphone** sits next to YouTube and Discord.
+3. The **Friction debt** card: point at the **Physical drift · phone** row.
+4. The **Vision Sentinel** card: at the desk %, eyes on screen %, phone pickups, head-down spells.
+5. The **Activity stream**: click the State on a row and pick *Always on-task*, and the scores re-calculate.
+6. The **Ambient activity** card (15-minute buckets).
 
-**Say:** "After the sprint I can see exactly where my attention went: minute by minute, which sites leaked it, how deep the rabbit holes went, and even the phone pickup. If the model gets a site wrong, one click teaches it. And Ambient Mode logs a whole afternoon without a single pop-up."
+Your own sprint from a minute ago has the real pickup in it. **Demo day** also has one sprint recorded with the Vision Sentinel on ("Ship the password reset email"), so the vision card and the phone rows are populated there too.
+
+**Say:** "After the sprint I can see exactly where my attention went: minute by minute, which sites leaked it, how deep the rabbit holes went. With the webcam on, the phone counts too: it's on the leaderboard and it cost me flow score, and I get time at the desk and eyes on screen. If the model gets a site wrong, one click teaches it. And Ambient Mode logs a whole afternoon without a single pop-up."
 
 ## 2:55–3:10 · Close
 
@@ -96,5 +100,6 @@ Real drift detection takes about 16 s (two 8-second checks). Leave it in and spe
 | Summary has no data | `Ctrl+Shift+S` shows the demo summary |
 | AI status says offline | Ollama isn't running: start it, or say "and with Ollama off it falls back to rules" |
 | Phone isn't detected (bad light, wrong angle) | Hold it face-on and higher, nearer your face. If it still misses, press `Ctrl+Shift+W` for the same amber card (it's labelled "demo" in small print), and press it again to clear |
+| No eye badge in the pill during the sprint | The Vision Sentinel is off: open the goal card and click the eye. It applies to the running sprint straight away |
 | Badge says `NO CAM` | Another app (Zoom, Teams, OBS's camera source) has the webcam. Close it, end the sprint and start a new one. Or use `Ctrl+Shift+W` |
 | Recording software needs the camera too | Share-capable cameras usually work. If not, record the screen only and use the preview window as your "camera" shot |

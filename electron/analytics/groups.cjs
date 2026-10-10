@@ -37,6 +37,7 @@ function groupOf(seg) {
     case 'notes':
       return 'writing';
     case 'chat':
+    case 'phone': // Vision Sentinel: phone in hand
       return 'messaging';
     case 'media':
       return 'entertainment';

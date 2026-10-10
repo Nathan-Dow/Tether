@@ -1,4 +1,4 @@
-import { Bug, BookOpen, CalendarPlus, Download, MessageCircle, Smartphone } from 'lucide-react';
+import { Bug, BookOpen, CalendarPlus, Download, EyeOff, MessageCircle, Smartphone } from 'lucide-react';
 import { bridge } from '../lib/bridge.js';
 import { fmtClock, fmtDuration } from '../lib/format.js';
 import { STATES } from '../lib/states.js';
@@ -130,6 +130,70 @@ export function SessionList({ sessions, onSelect }) {
             </li>
           ))}
       </ul>
+    </Card>
+  );
+}
+
+// Vision Sentinel: presence, gaze and phone time from the webcam checks.
+// When it's off, say so: everything else on the dashboard works without it.
+const pct = (v) => (v == null ? '–' : `${Math.round(v * 100)}%`);
+
+function Stat({ label, value, foot }) {
+  return (
+    <div className="rounded-lg bg-white/[0.03] px-3 py-2">
+      <div className="text-[10.5px] text-zinc-500">{label}</div>
+      <div className="font-mono text-[16px] font-semibold text-zinc-100 tabular-nums">{value}</div>
+      {foot && <div className="truncate text-[10.5px] text-zinc-600">{foot}</div>}
+    </div>
+  );
+}
+
+export function VisionCard({ vision }) {
+  if (!vision) {
+    return (
+      <Card title="Vision Sentinel" subtitle="Off · Tether runs fully without a webcam">
+        <div className="flex items-start gap-2.5 px-4 pb-3.5 text-[12px] text-zinc-500">
+          <EyeOff size={14} className="mt-0.5 shrink-0 text-zinc-600" />
+          <p>
+            Turn on the eye in the goal card to add webcam checks during sprints: time at the desk, eyes on screen,
+            and phone pickups counted as drift. Frames are checked on-device and never stored.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+  if (!vision.cameraOk) {
+    return (
+      <Card title="Vision Sentinel" subtitle="On, but the camera was unavailable">
+        <p className="px-4 pb-3.5 text-[12px] text-zinc-500">
+          No webcam frames were checked. Another app may have had the camera.
+        </p>
+      </Card>
+    );
+  }
+  return (
+    <Card
+      title="Vision Sentinel"
+      subtitle={`${vision.samples} webcam checks · on-device, frames never stored`}
+    >
+      <div className="grid grid-cols-2 gap-2 px-4 pb-3.5">
+        <Stat label="At the desk" value={pct(vision.presentShare)} />
+        <Stat
+          label="Eyes on screen"
+          value={pct(vision.onScreenShare)}
+          foot={vision.downShare != null ? `down ${pct(vision.downShare)} · aside ${pct(vision.sideShare)}` : null}
+        />
+        <Stat
+          label="Phone pickups"
+          value={vision.pickups}
+          foot={vision.pickups ? `${fmtDuration(vision.phoneMs)} on the phone` : 'none'}
+        />
+        <Stat
+          label="Head-down spells"
+          value={vision.headDowns}
+          foot={vision.headDowns ? `${fmtDuration(vision.headDownMs)} · phone in lap?` : 'none'}
+        />
+      </div>
     </Card>
   );
 }

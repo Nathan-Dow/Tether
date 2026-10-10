@@ -43,7 +43,9 @@ const ctx = ([process, title]) => {
 };
 
 // phases: [kind, minutes, pickIndex?]
-function buildSession({ id, goal, start, durationMin, phases, seed, mode = 'sprint' }) {
+// vision: { pickups: [[startMin, minutes, cause?]] } adds Vision Sentinel data:
+// phone spans plus a webcam sample every 7 s.
+function buildSession({ id, goal, start, durationMin, phases, seed, mode = 'sprint', vision = null }) {
   const r = rng(seed);
   const between = (a, b) => a + r() * (b - a);
   const segments = [];
@@ -117,7 +119,26 @@ function buildSession({ id, goal, start, durationMin, phases, seed, mode = 'spri
     }
   }
 
+  let visionData = null;
+  if (vision) {
+    const phone = vision.pickups.map(([m, len, cause = 'phone']) => ({
+      start: start + m * MIN,
+      end: start + (m + len) * MIN,
+      source: 'camera',
+      cause,
+    }));
+    const samples = [];
+    for (let at = start + 1500; at < start + durationMin * MIN; at += 7000) {
+      const present = segments.find((s) => s.start <= at && at < s.end)?.category !== 'idle';
+      const onPhone = phone.some((p) => p.start <= at && at < p.end);
+      const gaze = !present ? 'away' : onPhone ? 'down' : r() < 0.06 ? 'side' : 'screen';
+      samples.push({ at, present, gaze });
+    }
+    visionData = { phone, vision: { enabled: true, samples } };
+  }
+
   return {
+    ...visionData,
     version: 1,
     demo: true,
     id,
@@ -178,6 +199,8 @@ function demoSessions(day = Date.now()) {
       durationMin: 45,
       seed: 3,
       phases: [['work', 22], ['idle', 4], ['work', 8], ['drift', 3, 2], ['work', 8]],
+      // Run with the Vision Sentinel on: two pickups and a head-down spell.
+      vision: { pickups: [[9, 2], [29, 1, 'head-down'], [41, 1.5]] },
     }),
     // An afternoon in Ambient Mode: no goal or timer, just quiet logging.
     buildSession({

@@ -110,6 +110,18 @@ class SessionRecorder {
     else if (!phoneDetected && open && open.end == null) open.end = now;
   }
 
+  // Vision Sentinel samples: { at, present, gaze } every ~7 s, or
+  // { status: 'on' | 'unavailable' } when the sampler starts or can't.
+  onVisionSample(sample = {}) {
+    const s = this.session;
+    if (!s) return;
+    s.vision ??= { enabled: true, samples: [] };
+    if (sample.status === 'unavailable') s.vision.cameraError = true;
+    if (typeof sample.present === 'boolean' && sample.gaze) {
+      s.vision.samples.push({ at: sample.at ?? Date.now(), present: sample.present, gaze: sample.gaze });
+    }
+  }
+
   onAllow(key) {
     this.session?.allowed.push({ at: Date.now(), key });
   }
