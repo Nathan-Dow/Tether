@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 const { googleCalendarUrl, icsFile, icsFileName, escapeText, fold, utcStamp } = require('../electron/analytics/calendar.cjs');
 const { sessionReport } = require('../electron/analytics/metrics.cjs');
-const { buildSession } = require('../electron/analytics/demoDay.cjs');
+const { buildSession } = require('./fixtures/sessions.cjs');
 
 const START = Date.UTC(2026, 9, 10, 1, 0, 0);
 const report = sessionReport(

@@ -73,7 +73,6 @@ export default function App() {
       bridge.onShortcut((name) => {
         if (name === 'open-input') dispatch({ type: 'OPEN_INPUT' });
         if (name === 'voice') voiceRef.current();
-        if (name === 'phone-demo') toggleDemoRef.current();
       }),
     [dispatch],
   );
@@ -104,9 +103,7 @@ export default function App() {
       return !on;
     });
   const vision = useVisionSentinel({ active: Boolean(activeSprint) && visionOn });
-  const toggleDemoRef = useRef(vision.toggleDemo);
-  toggleDemoRef.current = vision.toggleDemo;
-  const { phoneDetected, cause: phoneCause, source: phoneSource, clearDemo } = vision;
+  const { phoneDetected, cause: phoneCause, source: phoneSource } = vision;
   useEffect(() => {
     bridge.reportPhone({ phoneDetected, source: phoneSource, cause: phoneCause ?? undefined });
     if (!phoneDetected) {
@@ -117,14 +114,13 @@ export default function App() {
       type: 'DRIFT',
       drift: {
         app: phoneCause === 'head-down' ? 'Head down: phone in your lap?' : 'Smartphone detected',
-        confidence: phoneSource === 'demo' ? 0.92 : phoneCause === 'head-down' ? 0.65 : 0.8,
+        confidence: phoneCause === 'head-down' ? 0.65 : 0.8,
         nudge: 'Return attention to sprint.',
         reason:
           phoneCause === 'head-down'
             ? 'Vision Sentinel: head pitched down for ~14 s'
             : 'Vision Sentinel saw a phone in frame',
         source: 'vision',
-        demo: phoneSource === 'demo',
       },
     });
   }, [phoneCause]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -171,9 +167,7 @@ export default function App() {
     };
   }, [dispatch]);
 
-  // In-island keyboard: Cmd/Ctrl+K input, Esc collapse, and rehearsal
-  // shortcuts Cmd/Ctrl+Shift+D (mock drift), Cmd/Ctrl+Shift+S (demo summary),
-  // Cmd/Ctrl+Shift+R (resume note) and Cmd/Ctrl+Shift+W (phone in hand).
+  // In-island keyboard: Cmd/Ctrl+K input, Esc collapse.
   useEffect(() => {
     const onKey = (e) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -182,32 +176,6 @@ export default function App() {
       if (mod && !e.shiftKey && key === 'k') {
         e.preventDefault();
         dispatch({ type: 'OPEN_INPUT' });
-      } else if (mod && e.shiftKey && key === 'd') {
-        e.preventDefault();
-        dispatch({
-          type: 'DRIFT',
-          drift: {
-            app: 'YouTube — Google Chrome',
-            confidence: 0.87,
-            nudge: sprint
-              ? `Back to "${sprint.goal}" — ${countdown.label} left.`
-              : 'Close the tab and declare a sprint.',
-            reason: 'Mock drift (dev shortcut)',
-            source: 'mock',
-          },
-        });
-      } else if (mod && e.shiftKey && key === 's') {
-        e.preventDefault();
-        bridge.getDayReport({ demo: true }).then((rep) => {
-          if (rep?.sessions[0]) dispatch({ type: 'SHOW_SUMMARY', report: rep.sessions[0] });
-        });
-      } else if (mod && e.shiftKey && key === 'w') {
-        // Also a global shortcut; this catches it if registration failed.
-        e.preventDefault();
-        toggleDemoRef.current();
-      } else if (mod && e.shiftKey && key === 'r') {
-        e.preventDefault();
-        bridge.previewResume();
       } else if (key === 'escape') {
         if (mode === 'input') dispatch({ type: 'CANCEL_INPUT' });
         else if (mode === 'drift') dispatch({ type: 'DISMISS_DRIFT' });
@@ -257,10 +225,7 @@ export default function App() {
               drift={drift}
               sprint={sprint}
               countdown={countdown}
-              onBack={() => {
-                if (drift.source === 'vision') clearDemo();
-                dispatch({ type: 'DISMISS_DRIFT' });
-              }}
+              onBack={() => dispatch({ type: 'DISMISS_DRIFT' })}
               onRelated={
                 drift.source === 'vision'
                   ? null

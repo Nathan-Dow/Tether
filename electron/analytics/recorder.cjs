@@ -99,7 +99,7 @@ class SessionRecorder {
     this.session?.alerts.push({ at: entry.at, key: entry.key });
   }
 
-  // Vision Sentinel: the webcam (or the demo hotkey) saw a phone come up or go away.
+  // Vision Sentinel: the webcam saw a phone come up or go away.
   // cause: 'phone' (in frame) | 'head-down' (looking down a while: phone in lap?)
   onPhone({ phoneDetected, source = 'camera', cause = 'phone' }, now = Date.now()) {
     const s = this.session;

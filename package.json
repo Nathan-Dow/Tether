@@ -15,23 +15,57 @@
     "test": "node --test test/*.test.cjs",
     "postinstall": "node node_modules/electron/install.js",
     "setup:voice": "node scripts/setup-voice.cjs",
-    "setup:vision": "node scripts/setup-vision.cjs"
-  },
-  "dependencies": {
-    "@mediapipe/tasks-vision": "^1.1.0",
-    "framer-motion": "^14.0.0",
-    "lucide-react": "^1.54.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "setup:vision": "node scripts/setup-vision.cjs",
+    "package": "vite build && electron-builder --win nsis"
   },
   "devDependencies": {
+    "@mediapipe/tasks-vision": "^1.1.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
     "concurrently": "^10.0.6",
     "cross-env": "^10.1.0",
     "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "framer-motion": "^14.0.0",
+    "lucide-react": "^1.54.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.4",
     "wait-on": "^9.5.1"
+  },
+  "author": "Nathan",
+  "build": {
+    "appId": "dev.tether.app",
+    "productName": "Tether",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "vendor/whisper",
+        "to": "vendor/whisper",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Tether"
+    }
   }
 }

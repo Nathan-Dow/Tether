@@ -45,7 +45,6 @@ A focus copilot only works if it can see what you're doing, and "what you're doi
 - **Ambient activity.** The 15-minute buckets from Ambient Mode.
 - **Vision Sentinel.** With the webcam on: time at the desk, eyes on screen (and how much was down or aside), phone pickups with time on the phone, and head-down spells. With it off, the card says so, because the rest of the dashboard doesn't need it.
 - **Sprints.** Every sprint with its scores and calendar export.
-- **Demo day.** A generated day of sprints, so every chart can be explored without recording one first.
 
 ### How the metrics are computed
 
@@ -113,16 +112,19 @@ ollama pull qwen2.5:1.5b   # ~1 GB, one time
 npm run setup:voice        # whisper.cpp + base.en model (~60 MB), one time, optional
 npm run setup:vision       # MediaPipe runtime + detector and face models (~8 MB), one time, optional
 
-npm start                  # starts Vite and the island
+npm run package            # builds release\Tether Setup 0.1.0.exe
 ```
 
-Stop it with `Ctrl+C` in that terminal. Without Ollama running, Tether still works on its rule fallback. Without `setup:voice`, the mic button explains what's missing. Without `setup:vision` or a webcam, the badge reads `NO CAM` and everything else works as normal.
+Run `release\Tether Setup 0.1.0.exe` once. It installs for your user only (no admin) into `%LOCALAPPDATA%\Programs\tether` and adds a desktop and Start menu shortcut. Tether then lives in the system tray: click the dot for a new sprint, right-click for the dashboard, **Start with Windows** and **Quit**. Launching the shortcut again while it's running opens the goal card. Run `setup:voice` before `package`, since whisper.cpp is bundled into the installer; re-run `npm run package` and the installer after pulling changes.
+
+For development, `npm start` runs Vite and Electron with hot reload; stop it with `Ctrl+C`. Without Ollama running, Tether still works on its rule fallback. Without `setup:voice`, the mic button explains what's missing. Without `setup:vision` or a webcam, the badge reads `NO CAM` and everything else works as normal.
 
 ### Commands
 
 | Command | What it does |
 |---|---|
-| `npm start` | Run Tether (Vite dev server + Electron) |
+| `npm run package` | Build the Windows installer into `release/` |
+| `npm start` | Run Tether in development (Vite dev server + Electron) |
 | `npm run preview:prod` | Build and run the production bundle |
 | `npm test` | Unit tests (analytics, calendar, labels, resume, voice, ambient, vision) |
 | `npm run eval` | Model accuracy and latency on the drift fixture |
@@ -137,10 +139,8 @@ Stop it with `Ctrl+C` in that terminal. Without Ollama running, Tether still wor
 | `Ctrl+Shift+K` | anywhere | Open the goal card |
 | `Ctrl+Shift+Space` | anywhere | Speak a goal (pause, or press again, to finish) |
 | `Ctrl+Alt+V` | anywhere | Open / close the Vision Sentinel live preview |
-| `Ctrl+Shift+W` | anywhere | Demo: toggle "Smartphone detected" (works with no camera) |
 | `Ctrl+K` | island | Goal card: Sprint/Ambient toggle, mic, end, dashboard |
 | `Esc` | island | Close or cancel |
-| `Ctrl+Shift+D` / `S` / `R` | island | Demo drift alert / summary card / welcome-back card |
 | Drag / double-click the grip | island | Move / re-centre the island |
 
 ### Settings (environment variables)
@@ -174,7 +174,6 @@ Stop it with `Ctrl+C` in that terminal. Without Ollama running, Tether still wor
 - **A small model makes small-model mistakes.** That's why there are labels: one click tells Tether that a site is always work, or always not.
 - **The Vision Sentinel is a first version.** Its thresholds (phone score 0.35, head down 18° past your usual pose) are starting points and haven't been tested across many people, cameras or lighting. EfficientDet-Lite0 is small, so a phone held edge-on or mostly covered by a hand can be missed. Use the `Ctrl+Alt+V` preview to see what it sees.
 - **The camera light stays on during a sprint** with the Vision Sentinel on, because the camera stays open between samples.
-- **`Ctrl+Shift+W` is taken while Tether runs**, so it won't close Chrome windows.
 
 ## Project layout
 
@@ -183,7 +182,7 @@ electron/
   main.cjs            windows, IPC, shortcuts, permissions
   context/            window probe, classifier, context daemon
   ai/                 Ollama client, evaluator, rule fallback
-  analytics/          recorder, store, metrics, groups, labels, resume, calendar, demo day
+  analytics/          recorder, store, metrics, groups, labels, resume, calendar
   voice/              whisper.cpp runner, intent extraction
 src/
   components/         island cards (goal, drift, voice, summary, resume)
@@ -192,5 +191,5 @@ src/
   vision/             Vision Sentinel live preview window
   dashboard/          dashboard window
 scripts/              eval, probe, setup-voice, setup-vision
-test/                 node:test suites
+test/                 node:test suites (fixtures/: synthetic sprints)
 ```

@@ -10,7 +10,7 @@ const {
   writeNote,
   ResumeTracker,
 } = require('../electron/analytics/resume.cjs');
-const { buildSession } = require('../electron/analytics/demoDay.cjs');
+const { buildSession } = require('./fixtures/sessions.cjs');
 
 const MIN = 60_000;
 const START = new Date(2026, 9, 10, 10, 0).getTime();

@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { sessionReport, dayReport, siteOf } = require('../electron/analytics/metrics.cjs');
-const { buildSession, demoSessions } = require('../electron/analytics/demoDay.cjs');
+const { buildSession, demoSessions } = require('./fixtures/sessions.cjs');
 const { SessionRecorder } = require('../electron/analytics/recorder.cjs');
 const { SessionStore } = require('../electron/analytics/store.cjs');
 

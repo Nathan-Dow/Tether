@@ -7,7 +7,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 
-const WHISPER_DIR = process.env.TETHER_WHISPER_DIR || path.join(__dirname, '..', '..', 'vendor', 'whisper');
+// The installed app ships vendor/whisper next to app.asar (an .exe can't run from inside it).
+const VENDOR = process.resourcesPath && !process.defaultApp
+  ? path.join(process.resourcesPath, 'vendor')
+  : path.join(__dirname, '..', '..', 'vendor');
+const WHISPER_DIR = process.env.TETHER_WHISPER_DIR || path.join(VENDOR, 'whisper');
 const CLI_PATH = path.join(WHISPER_DIR, 'bin', 'whisper-cli.exe');
 const MODEL_PATH = path.join(WHISPER_DIR, 'models', 'ggml-base.en-q5_1.bin');
 const SAMPLE_RATE = 16_000; // what Whisper expects

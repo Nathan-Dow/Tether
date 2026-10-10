@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 const { groupOf } = require('../electron/analytics/groups.cjs');
 const { sessionReport } = require('../electron/analytics/metrics.cjs');
-const { buildSession } = require('../electron/analytics/demoDay.cjs');
+const { buildSession } = require('./fixtures/sessions.cjs');
 const { SessionRecorder } = require('../electron/analytics/recorder.cjs');
 const { Evaluator } = require('../electron/ai/evaluator.cjs');
 

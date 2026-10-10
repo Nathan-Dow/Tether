@@ -9,10 +9,13 @@ const {
   dialog,
   ipcMain,
   globalShortcut,
+  Menu,
+  nativeImage,
   powerMonitor,
   screen,
   session,
   shell,
+  Tray,
 } = require('electron');
 const fs = require('node:fs');
 const { WindowsProbe } = require('./context/windowsProbe.cjs');
@@ -22,7 +25,6 @@ const { SessionStore } = require('./analytics/store.cjs');
 const { SessionRecorder } = require('./analytics/recorder.cjs');
 const { LabelStore } = require('./analytics/labels.cjs');
 const { sessionReport, dayReport } = require('./analytics/metrics.cjs');
-const { demoSessions } = require('./analytics/demoDay.cjs');
 const { googleCalendarUrl, icsFile, icsFileName } = require('./analytics/calendar.cjs');
 const { ResumeTracker, buildSnapshot, resumePrompt, writeNote } = require('./analytics/resume.cjs');
 const ollama = require('./ai/ollama.cjs');
@@ -134,6 +136,44 @@ function openDashboard() {
 }
 
 ipcMain.on('dashboard:open', openDashboard);
+
+// ---------------------------------------------------------------------------
+// Tray: the island has no taskbar button, so this is where Tether lives.
+// ---------------------------------------------------------------------------
+
+let tray = null;
+
+function openGoal() {
+  if (!win) return;
+  summon();
+  win.webContents.send('shortcut', 'open-input');
+}
+
+function trayMenu() {
+  return Menu.buildFromTemplate([
+    { label: 'New sprint', accelerator: 'CommandOrControl+Shift+K', click: openGoal },
+    { label: 'Focus dashboard', click: openDashboard },
+    { label: 'Re-centre island', click: recenter },
+    { type: 'separator' },
+    {
+      label: 'Start with Windows',
+      type: 'checkbox',
+      // Only the installed app can register itself; in dev this would launch bare Electron.
+      enabled: app.isPackaged,
+      checked: app.isPackaged && app.getLoginItemSettings().openAtLogin,
+      click: (item) => app.setLoginItemSettings({ openAtLogin: item.checked }),
+    },
+    { type: 'separator' },
+    { label: 'Quit Tether', click: () => app.quit() },
+  ]);
+}
+
+function createTray() {
+  tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'tray.png')));
+  tray.setToolTip('Tether');
+  tray.setContextMenu(trayMenu());
+  tray.on('click', openGoal);
+}
 
 // Vision Sentinel live preview (Ctrl+Alt+V): camera feed with what the
 // on-device models see drawn over it. Toggles open/closed.
@@ -301,7 +341,7 @@ ipcMain.on('island:drag-end', () => {
   placeAt(x, y);
 });
 
-ipcMain.on('island:recenter', () => {
+function recenter() {
   if (!win) return;
   stopDrag();
   const { x, y } = topCenter();
@@ -309,7 +349,9 @@ ipcMain.on('island:recenter', () => {
   // scale factor, the first call lands using the old monitor's scale.
   placeAt(x, y);
   placeAt(x, y);
-});
+}
+
+ipcMain.on('island:recenter', recenter);
 
 ipcMain.on('island:devtools', () => {
   if (!win) return;
@@ -322,12 +364,17 @@ ipcMain.on('island:devtools', () => {
 
 let daemon = null;
 
+// The probe only needs to be quick during a sprint; between sprints it just
+// feeds the island's current-app chip.
+const SPRINT_TICK_MS = Number(process.env.TETHER_TICK_MS) || 2000;
+const IDLE_TICK_MS = 10_000;
+
 function startContextDaemon() {
   if (process.platform !== 'win32') return;
 
   daemon = new ContextDaemon({
     probe: new WindowsProbe(),
-    intervalMs: Number(process.env.TETHER_TICK_MS) || 2000,
+    intervalMs: IDLE_TICK_MS,
     // The island's own window is owned by this (main) process.
     selfPid: process.pid,
   });
@@ -386,6 +433,7 @@ ipcMain.on('sprint:set', (_e, sprint) => {
       broadcast('session:finished', lastReport);
     }
   }
+  daemon?.setIntervalMs(sprint ? SPRINT_TICK_MS : IDLE_TICK_MS);
   evaluator?.setSprint(sprint);
 });
 
@@ -430,9 +478,7 @@ function allSessions() {
 
 const getLabels = () => labelStore?.all() ?? {};
 
-ipcMain.handle('analytics:day', (_e, { demo = false } = {}) =>
-  dayReport(demo ? demoSessions() : allSessions(), { day: Date.now(), labels: getLabels() }),
-);
+ipcMain.handle('analytics:day', () => dayReport(allSessions(), { day: Date.now(), labels: getLabels() }));
 
 // Your own "always on-task / always drift" labels, set from the dashboard.
 // Every window re-reads its reports when they change.
@@ -444,9 +490,9 @@ ipcMain.handle('labels:set', (_e, { site, label } = {}) => {
 });
 ipcMain.handle('analytics:last-session', () => lastReport);
 
-// Any session by id: the one just finished, a saved one, or a demo one.
+// Any session by id: the one just finished or a saved one.
 function findReport(id) {
-  const saved = store?.load(id) ?? demoSessions().find((s) => s.id === id);
+  const saved = store?.load(id);
   if (saved) return sessionReport(saved, { labels: getLabels() });
   return lastReport?.id === id ? lastReport : null;
 }
@@ -525,14 +571,6 @@ async function showResume(session, now) {
   win?.webContents.send('resume:show', { ...snapshot, ...note, prompt: resumePrompt(snapshot) });
 }
 
-// Ctrl/Cmd+Shift+R rehearsal: the live sprint, or the demo day's debugging
-// sprint right after its YouTube detour.
-ipcMain.on('resume:preview', () => {
-  if (recorder?.session) return showResume(recorder.session, Date.now());
-  const demo = demoSessions().find((s) => s.id === 'demo-2');
-  showResume(demo, demo.startedAt + 32 * 60_000 + 10_000);
-});
-
 ipcMain.handle('clipboard:write', (_e, text) => {
   clipboard.writeText(String(text));
   return true;
@@ -540,7 +578,7 @@ ipcMain.handle('clipboard:write', (_e, text) => {
 
 // ---------------------------------------------------------------------------
 // Network egress counter. Anything that isn't loopback (Vite dev server,
-// Ollama on :11434) counts. Not shown in the UI; kept for the offline demo.
+// Ollama on :11434) counts. Not shown in the UI.
 // ---------------------------------------------------------------------------
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -612,36 +650,27 @@ ipcMain.handle('voice:transcribe', async (_e, samples) => {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (!win) return;
-    win.showInactive();
-  });
+  // Launching Tether again (e.g. the desktop shortcut) opens the goal card.
+  app.on('second-instance', openGoal);
 
   app.whenReady().then(() => {
     if (isMac) app.dock?.hide();
     watchEgress();
     allowMicOnly();
     createWindow();
+    createTray();
     startRecorder();
     startContextDaemon();
     startEvaluator();
 
     // Plain Ctrl+K globally would hijack editor/browser chords, so the
     // system-wide summon is Cmd/Ctrl+Shift+K. Cmd/Ctrl+K works in-island.
-    globalShortcut.register('CommandOrControl+Shift+K', () => {
-      if (!win) return;
-      summon();
-      win.webContents.send('shortcut', 'open-input');
-    });
+    globalShortcut.register('CommandOrControl+Shift+K', openGoal);
     // Voice goal: press to start talking, press again (or pause) to finish.
     globalShortcut.register('CommandOrControl+Shift+Space', () => {
       if (!win) return;
       summon();
       win.webContents.send('shortcut', 'voice');
-    });
-    // Demo failsafe: toggle "smartphone detected" without a camera.
-    globalShortcut.register('CommandOrControl+Shift+W', () => {
-      win?.webContents.send('shortcut', 'phone-demo');
     });
     globalShortcut.register('CommandOrControl+Alt+V', toggleVisionPreview);
   });

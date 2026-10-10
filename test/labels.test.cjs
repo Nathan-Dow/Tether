@@ -6,7 +6,7 @@ const path = require('node:path');
 
 const { LabelStore } = require('../electron/analytics/labels.cjs');
 const { sessionReport, dayReport } = require('../electron/analytics/metrics.cjs');
-const { buildSession } = require('../electron/analytics/demoDay.cjs');
+const { buildSession } = require('./fixtures/sessions.cjs');
 const { Evaluator } = require('../electron/ai/evaluator.cjs');
 
 const MIN = 60_000;

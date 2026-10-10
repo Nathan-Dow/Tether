@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('tether', {
   onEvaluation: (cb) => subscribe('eval:result', cb), // drift alerts only
 
   // Session analytics
-  getDayReport: (opts) => ipcRenderer.invoke('analytics:day', opts),
+  getDayReport: () => ipcRenderer.invoke('analytics:day'),
   getLastSession: () => ipcRenderer.invoke('analytics:last-session'),
   clearHistory: () => ipcRenderer.invoke('analytics:clear'),
   onSessionFinished: (cb) => subscribe('session:finished', cb),
@@ -53,14 +53,13 @@ contextBridge.exposeInMainWorld('tether', {
 
   // Resume Flow
   onResume: (cb) => subscribe('resume:show', cb),
-  previewResume: () => ipcRenderer.send('resume:preview'),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
 
   // Voice goal input: Float32Array of 16 kHz mono samples -> { goal, durationMin, ... }
   getVoiceStatus: () => ipcRenderer.invoke('voice:status'),
   transcribe: (samples) => ipcRenderer.invoke('voice:transcribe', samples),
 
-  // Vision Sentinel: { phoneDetected, source: 'camera' | 'demo' }
+  // Vision Sentinel: { phoneDetected, source: 'camera' }
   reportPhone: (event) => ipcRenderer.send('vision:phone', event),
   // { at, present, gaze } per sample, or { status: 'on' | 'unavailable' }
   reportVisionSample: (sample) => ipcRenderer.send('vision:sample', sample),

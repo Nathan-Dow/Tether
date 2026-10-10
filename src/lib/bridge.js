@@ -33,7 +33,6 @@ const fallback = {
   setLabel: async () => ({}),
   onLabelsChanged: unsub,
   onResume: unsub,
-  previewResume: noop,
   copyText: async (text) => navigator.clipboard.writeText(text).then(() => true),
   getVoiceStatus: async () => ({ ready: false, reason: 'unsupported' }),
   transcribe: async () => ({ ok: false, error: 'missing' }),

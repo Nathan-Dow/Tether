@@ -5,8 +5,7 @@ const ENGINE = {
   model: (d) => `Local model · ${d.latencyMs}ms`,
   cache: () => 'Local model · cached',
   rules: () => 'Rules fallback',
-  mock: () => 'Demo drift',
-  vision: (d) => (d.demo ? 'Vision Sentinel · demo' : 'Vision Sentinel · on-device'),
+  vision: () => 'Vision Sentinel · on-device',
 };
 
 export default function DriftCard({ drift, sprint, countdown, onBack, onRelated }) {

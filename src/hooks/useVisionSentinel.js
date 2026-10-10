@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bridge } from '../lib/bridge.js';
 import { analyze, describe, GazeTracker, H, loadVision, PERSON_MIN, PHONE_MIN, W } from '../lib/vision.js';
 
@@ -15,7 +15,6 @@ const DOWN_SAMPLES = 2; // head down this many samples in a row (~14 s) = phone 
 export function useVisionSentinel({ active }) {
   const [status, setStatus] = useState('off');
   const [cameraCause, setCameraCause] = useState(null);
-  const [demoPhone, setDemoPhone] = useState(false);
 
   useEffect(() => {
     if (!active) return undefined;
@@ -84,18 +83,10 @@ export function useVisionSentinel({ active }) {
     };
   }, [active]);
 
-  // Ctrl+Shift+W demo failsafe: works with no camera, bad light, or no sprint.
-  const toggleDemo = useCallback(() => setDemoPhone((on) => !on), []);
-  const clearDemo = useCallback(() => setDemoPhone(false), []);
-
-  const cause = demoPhone ? 'phone' : cameraCause;
   return {
     status,
-    demo: demoPhone,
-    phoneDetected: Boolean(cause), // physical drift of either kind
-    cause,
-    source: demoPhone ? 'demo' : 'camera',
-    toggleDemo,
-    clearDemo,
+    phoneDetected: Boolean(cameraCause), // physical drift of either kind
+    cause: cameraCause,
+    source: 'camera',
   };
 }

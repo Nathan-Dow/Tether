@@ -33,6 +33,16 @@ class ContextDaemon extends EventEmitter {
     this.timer = setInterval(() => this.tick(), this.intervalMs);
   }
 
+  // Sample faster during a sprint, slower between them.
+  setIntervalMs(ms) {
+    if (ms === this.intervalMs) return;
+    this.intervalMs = ms;
+    if (!this.timer) return;
+    clearInterval(this.timer);
+    this.tick(); // fresh sample right away, e.g. when a sprint starts
+    this.timer = setInterval(() => this.tick(), this.intervalMs);
+  }
+
   stop() {
     clearInterval(this.timer);
     this.timer = null;

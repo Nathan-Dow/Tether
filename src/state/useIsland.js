@@ -66,14 +66,9 @@ function reducer(state, action) {
       return { ...state, mode: 'drift', drift: action.drift };
 
     case 'VERDICT':
-      // Back on task: the warning clears itself. Mock drifts stay put so
-      // they can be rehearsed; phone drifts clear when the phone goes down.
-      if (
-        state.mode === 'drift' &&
-        !action.verdict.isDistracted &&
-        state.drift?.source !== 'mock' &&
-        state.drift?.source !== 'vision'
-      ) {
+      // Back on task: the warning clears itself. Phone drifts clear when
+      // the phone goes down.
+      if (state.mode === 'drift' && !action.verdict.isDistracted && state.drift?.source !== 'vision') {
         return { ...state, mode: restingMode(state), drift: null };
       }
       return state;

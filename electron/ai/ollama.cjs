@@ -3,6 +3,8 @@
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
 const MODEL = process.env.TETHER_MODEL || 'qwen2.5:1.5b';
+// Unload the model after 5 idle minutes so it isn't holding RAM/VRAM between sprints.
+const KEEP_ALIVE = '5m';
 
 async function request(path, { body, timeoutMs }) {
   const ctrl = new AbortController();
@@ -48,7 +50,7 @@ async function generateJson({ system, prompt, schema, timeoutMs = 8000, numPredi
       prompt,
       format: schema ?? 'json',
       stream: false,
-      keep_alive: '30m',
+      keep_alive: KEEP_ALIVE,
       options: { temperature: 0, num_predict: numPredict, num_ctx: 2048 },
     },
   });
@@ -68,7 +70,7 @@ async function warmUp(system) {
         model: MODEL,
         system,
         prompt: 'Goal: "warm up"\nWindow: [other] "warm up"',
-        keep_alive: '30m',
+        keep_alive: KEEP_ALIVE,
         stream: false,
         options: { temperature: 0, num_predict: 1, num_ctx: 2048 },
       },

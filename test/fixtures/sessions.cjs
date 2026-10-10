@@ -1,6 +1,5 @@
-// Deterministic, clearly-labelled demo data ("Load demo day"), so the
-// dashboard isn't empty on a fresh install. Never written to disk.
-const { classify } = require('../context/classify.cjs');
+// Deterministic synthetic sprints for the tests. Not shipped with the app.
+const { classify } = require('../../electron/context/classify.cjs');
 
 const MIN = 60_000;
 

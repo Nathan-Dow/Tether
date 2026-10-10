@@ -4,9 +4,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Check,
-  FlaskConical,
   Minus,
-  Radio,
   Trash2,
   Zap,
 } from 'lucide-react';
@@ -17,22 +15,7 @@ import ActivityStream from './ActivityStream.jsx';
 import AmbientBuckets from './AmbientBuckets.jsx';
 import { Episodes, Leaderboard, SessionList, VisionCard } from './SidePanels.jsx';
 
-function TopBar({ demo, setDemo, onClear, day }) {
-  const tab = (active, onClick, Icon, label) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] transition-colors ${
-        active ? 'bg-white/10 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'
-      }`}
-    >
-      <Icon size={13} />
-      {label}
-    </button>
-  );
-
+function TopBar({ onClear, day }) {
   return (
     <div className="titlebar flex h-11 shrink-0 items-center gap-4 border-b border-white/[0.08] pr-[150px] pl-4">
       <div className="flex items-center gap-2">
@@ -46,26 +29,15 @@ function TopBar({ demo, setDemo, onClear, day }) {
       <span className="font-mono text-[11.5px] text-zinc-600">{day}</span>
 
       <div className="ml-auto flex items-center gap-3">
-        {demo && (
-          <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-amber-300 uppercase">
-            Demo data
-          </span>
-        )}
-        <div role="tablist" className="flex rounded-lg border border-white/[0.08] p-0.5">
-          {tab(!demo, () => setDemo(false), Radio, 'Live')}
-          {tab(demo, () => setDemo(true), FlaskConical, 'Demo day')}
-        </div>
-        {!demo && (
-          <button
-            type="button"
-            onClick={onClear}
-            title="Delete all recorded sprints from this computer"
-            className="flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] text-zinc-500 transition-colors hover:bg-white/5 hover:text-red-300"
-          >
-            <Trash2 size={13} />
-            Clear history
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onClear}
+          title="Delete all recorded sprints from this computer"
+          className="flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] text-zinc-500 transition-colors hover:bg-white/5 hover:text-red-300"
+        >
+          <Trash2 size={13} />
+          Clear history
+        </button>
       </div>
     </div>
   );
@@ -155,7 +127,7 @@ function KpiRow({ kpis, episodes }) {
   );
 }
 
-function EmptyState({ onDemo }) {
+function EmptyState() {
   return (
     <div className="mx-auto mt-24 max-w-md text-center">
       <div className="mx-auto flex size-10 items-center justify-center rounded-xl border border-white/[0.08]">
@@ -166,27 +138,18 @@ function EmptyState({ onDemo }) {
         Press <kbd className="rounded border border-white/10 px-1 font-sans text-[11px]">{modKey} Shift K</kbd>{' '}
         to declare a sprint from the island. Everything here is computed on this machine.
       </p>
-      <button
-        type="button"
-        onClick={onDemo}
-        className="mt-5 inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-[12.5px] text-zinc-300 transition-colors hover:bg-white/5"
-      >
-        <FlaskConical size={13} />
-        Load demo day
-      </button>
     </div>
   );
 }
 
 export default function Dashboard() {
-  const [demo, setDemo] = useState(false);
   const [report, setReport] = useState(null);
   const [selectedT, setSelectedT] = useState(null);
   const [labels, setLabels] = useState({});
 
   const load = useCallback(() => {
-    bridge.getDayReport({ demo }).then((r) => r && setReport(r));
-  }, [demo]);
+    bridge.getDayReport().then((r) => r && setReport(r));
+  }, []);
 
   // Your labels re-score every sprint, so reload the report when they change.
   useEffect(() => {
@@ -197,18 +160,16 @@ export default function Dashboard() {
     });
   }, [load]);
 
-  // Live mode refreshes while a sprint is running and when one finishes.
+  // Refresh while a sprint is running and when one finishes.
   useEffect(() => {
-    setSelectedT(null);
     load();
-    if (demo) return undefined;
     const id = setInterval(load, 10_000);
     const off = bridge.onSessionFinished(load);
     return () => {
       clearInterval(id);
       off();
     };
-  }, [demo, load]);
+  }, [load]);
 
   const clear = async () => {
     if (await bridge.clearHistory()) load();
@@ -219,11 +180,11 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-full flex-col">
-      <TopBar demo={demo} setDemo={setDemo} onClear={clear} day={day} />
+      <TopBar onClear={clear} day={day} />
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[1400px] space-y-4 px-6 pt-5 pb-10">
           {!report ? null : !hasData ? (
-            <EmptyState onDemo={() => setDemo(true)} />
+            <EmptyState />
           ) : (
             <>
               <KpiRow kpis={report.kpis} episodes={report.episodes} />
