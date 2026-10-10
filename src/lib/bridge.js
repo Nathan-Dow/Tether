@@ -6,6 +6,7 @@ const unsub = () => noop;
 const fallback = {
   platform: navigator.platform.toLowerCase().includes('mac') ? 'darwin' : 'win32',
   setInteractive: noop,
+  setExpanded: noop,
   focus: noop,
   dragStart: noop,
   dragEnd: noop,

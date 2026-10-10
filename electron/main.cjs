@@ -44,6 +44,8 @@ const DEV_URL = 'http://127.0.0.1:5173';
 // Extra room around the 420x180 max island leaves space for the glow.
 const WIN_W = 500;
 const WIN_H = 250;
+// The collapsed pill inside that window (Island.jsx: 420x54, 10px from the top).
+const PILL = { x: (WIN_W - 420) / 2, y: 10, w: 420, h: 54 };
 
 let win = null;
 
@@ -196,6 +198,8 @@ function createWindow() {
   // Transparent areas pass clicks through to whatever is underneath; the
   // renderer flips this off while the cursor is over the island itself.
   win.setIgnoreMouseEvents(true, { forward: true });
+  clickThrough = true;
+  watchCursor();
 
   loadPage(win, 'index.html');
 
@@ -224,17 +228,48 @@ function placeAt(x, y) {
   win.setBounds({ x: Math.round(x), y: Math.round(y), width: WIN_W, height: WIN_H });
 }
 
-ipcMain.on('island:interactive', (_e, interactive) => {
-  if (!win) return;
-  if (interactive) win.setIgnoreMouseEvents(false);
-  else win.setIgnoreMouseEvents(true, { forward: true });
+// Click-through is driven two ways: the renderer's hover events (instant)
+// and a cursor poll here (the safety net). Windows' forwarded mouse events
+// for an ignoring window are unreliable, so hover alone could miss an enter
+// (island won't take clicks) or a leave (invisible area eats clicks).
+let clickThrough = true;
+let islandExpanded = false;
+let cursorTimer = null;
+
+function setClickThrough(on) {
+  if (!win || on === clickThrough) return;
+  clickThrough = on;
+  if (on) win.setIgnoreMouseEvents(true, { forward: true });
+  else win.setIgnoreMouseEvents(false);
+}
+
+function cursorOverPill() {
+  const p = screen.getCursorScreenPoint();
+  const b = win.getBounds();
+  const x = p.x - b.x;
+  const y = p.y - b.y;
+  return x >= PILL.x && x < PILL.x + PILL.w && y >= PILL.y && y < PILL.y + PILL.h;
+}
+
+function watchCursor() {
+  clearInterval(cursorTimer);
+  cursorTimer = setInterval(() => {
+    if (!win || win.isDestroyed() || !win.isVisible()) return;
+    setClickThrough(!(islandExpanded || dragTimer || cursorOverPill()));
+  }, 80);
+}
+
+ipcMain.on('island:interactive', (_e, interactive) => setClickThrough(!interactive));
+ipcMain.on('island:expanded', (_e, expanded) => {
+  islandExpanded = Boolean(expanded);
+  if (islandExpanded) setClickThrough(false);
 });
 
 // Pull keyboard focus to the island (goal input). A click-through window
 // can't reliably become foreground on Windows, so drop that first.
 function summon() {
   if (!win) return;
-  win.setIgnoreMouseEvents(false);
+  setClickThrough(false);
   win.show();
   win.moveTop();
   win.focus();
@@ -613,6 +648,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('will-quit', () => {
     stopDrag();
+    clearInterval(cursorTimer);
     recorder?.finish(); // don't lose a sprint that's still running
     daemon?.stop();
     evaluator?.stop();

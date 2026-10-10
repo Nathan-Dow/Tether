@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('tether', {
 
   // Window behaviour
   setInteractive: (interactive) => ipcRenderer.send('island:interactive', !!interactive),
+  setExpanded: (expanded) => ipcRenderer.send('island:expanded', !!expanded),
   focus: () => ipcRenderer.send('island:focus'),
   dragStart: () => ipcRenderer.send('island:drag-start'),
   dragEnd: () => ipcRenderer.send('island:drag-end'),

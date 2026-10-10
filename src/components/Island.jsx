@@ -30,6 +30,7 @@ export default function Island({ mode, children }) {
   // global shortcut with the cursor elsewhere). On collapse, hand clicks back
   // to the desktop unless the cursor is actually over the pill.
   useEffect(() => {
+    bridge.setExpanded(expanded); // main's cursor poll keeps an open card clickable
     if (expanded) bridge.setInteractive(true);
     else if (!hovered.current && !isDragging()) bridge.setInteractive(false);
   }, [expanded]);
