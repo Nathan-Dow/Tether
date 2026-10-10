@@ -92,7 +92,7 @@ const VELOCITY = {
   thrashing: { Icon: Zap, color: 'text-red-400', label: 'Thrashing' },
 };
 
-const EPISODE_SHORT = { social: 'Social', informational: 'Info', debugging: 'Debug' };
+const EPISODE_SHORT = { social: 'Social', informational: 'Info', debugging: 'Debug', physical: 'Phone' };
 
 function KpiRow({ kpis, episodes }) {
   const trend = kpis.flowTrend;
