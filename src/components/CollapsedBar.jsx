@@ -1,4 +1,4 @@
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, Eye, EyeOff } from 'lucide-react';
 import { modKey } from '../lib/bridge.js';
 import ContextChip from './ContextChip.jsx';
 import Grip from './Grip.jsx';
@@ -22,7 +22,31 @@ function Heartbeat({ active, ambient = false }) {
   );
 }
 
-export default function CollapsedBar({ sprint, countdown, context, onOpen }) {
+// Discreet Vision Sentinel status next to the timer.
+const VISION = {
+  starting: { Icon: Eye, text: 'VISION', cls: 'text-zinc-500 animate-pulse', title: 'Vision Sentinel: starting camera' },
+  locked: { Icon: Eye, text: 'LOCKED', cls: 'text-emerald-400/80', title: 'VISION SENTINEL: LOCKED' },
+  away: { Icon: EyeOff, text: 'AWAY', cls: 'text-zinc-500', title: 'Vision Sentinel: no one at the desk' },
+  down: { Icon: Eye, text: 'DOWN', cls: 'text-amber-300/80', title: 'Vision Sentinel: looking down' },
+  side: { Icon: Eye, text: 'ASIDE', cls: 'text-zinc-400', title: 'Vision Sentinel: looking away from the screen' },
+  noface: { Icon: EyeOff, text: 'NO FACE', cls: 'text-zinc-500', title: 'Vision Sentinel: someone is there but no face is visible' },
+  unavailable: { Icon: EyeOff, text: 'NO CAM', cls: 'text-zinc-600', title: 'Vision Sentinel: camera unavailable' },
+};
+
+function VisionBadge({ vision }) {
+  const v = vision?.phoneDetected
+    ? { Icon: Eye, text: 'PHONE', cls: 'text-amber-300', title: 'Vision Sentinel: smartphone detected' }
+    : VISION[vision?.status];
+  if (!v) return null;
+  return (
+    <span title={v.title} className={`flex shrink-0 items-center gap-1 font-mono text-[9px] font-semibold tracking-wider ${v.cls}`}>
+      <v.Icon size={11} />
+      {v.text}
+    </span>
+  );
+}
+
+export default function CollapsedBar({ sprint, countdown, context, vision, onOpen }) {
   const running = sprint && !countdown.done;
   const ambient = sprint?.mode === 'ambient';
 
@@ -71,6 +95,8 @@ export default function CollapsedBar({ sprint, countdown, context, onOpen }) {
           </>
         )}
       </button>
+
+      <VisionBadge vision={vision} />
 
       {sprint && (
         <span

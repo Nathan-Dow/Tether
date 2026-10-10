@@ -242,6 +242,23 @@ function episodesOf(segments) {
   return episodes.sort((a, b) => a.start - b.start);
 }
 
+// Vision Sentinel pickups land in the Friction ledger as "physical" drift.
+function phoneEpisodesOf(session, end) {
+  return (session.phone || []).map((p) => {
+    const stop = p.end ?? end;
+    return {
+      kind: 'physical',
+      start: p.start,
+      end: stop,
+      durationMs: Math.max(0, stop - p.start),
+      sites: [
+        p.source === 'demo' ? 'Smartphone (demo)' : p.cause === 'head-down' ? 'Head down (phone in lap?)' : 'Smartphone',
+      ],
+      returnedToGoal: p.end != null,
+    };
+  });
+}
+
 // Verified Deep Work: on-task stretches of >= deepMinMs. A single short peek
 // at a distraction (< deepBreakDriftMs) doesn't break the stretch (nor count);
 // a longer drift, or another peek within deepRepeatPeekMs, does.
@@ -362,7 +379,7 @@ function sessionReport(session, { labels } = {}) {
   const switches = switchesOf(segments);
   const windows = cfiWindows(segments, switches, start, end);
   const cfi = weightedCfi(windows);
-  const episodes = episodesOf(segments);
+  const episodes = [...episodesOf(segments), ...phoneEpisodesOf(session, end)].sort((a, b) => a.start - b.start);
   const perHour = totals.activeMs ? switches.length / (totals.activeMs / HOUR) : null;
 
   return {

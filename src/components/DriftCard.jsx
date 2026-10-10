@@ -1,15 +1,18 @@
 import { motion } from 'framer-motion';
-import { AppWindow, ArrowDown, Cpu, TriangleAlert } from 'lucide-react';
+import { AppWindow, ArrowDown, Cpu, Smartphone, TriangleAlert } from 'lucide-react';
 
 const ENGINE = {
   model: (d) => `Local model · ${d.latencyMs}ms`,
   cache: () => 'Local model · cached',
   rules: () => 'Rules fallback',
   mock: () => 'Demo drift',
+  vision: (d) => (d.demo ? 'Vision Sentinel · demo' : 'Vision Sentinel · on-device'),
 };
 
 export default function DriftCard({ drift, sprint, countdown, onBack, onRelated }) {
   const pct = Math.round(Math.max(0, Math.min(1, drift.confidence)) * 100);
+  const physical = drift.source === 'vision';
+  const AppIcon = physical ? Smartphone : AppWindow;
 
   return (
     <div className="absolute inset-0 flex flex-col justify-between px-5 pt-4 pb-4">
@@ -17,7 +20,7 @@ export default function DriftCard({ drift, sprint, countdown, onBack, onRelated 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-amber-300 uppercase">
           <TriangleAlert size={14} />
-          Drift detected
+          {physical ? 'Physical drift' : 'Drift detected'}
         </div>
         <div className="flex items-center gap-2 text-[11px] text-zinc-500">
           <div className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.06]">
@@ -36,7 +39,7 @@ export default function DriftCard({ drift, sprint, countdown, onBack, onRelated 
       {/* Offending app vs declared goal */}
       <div className="flex items-center gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-400/10 text-amber-300">
-          <AppWindow size={18} />
+          <AppIcon size={18} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[15px] font-semibold text-zinc-50">{drift.app}</div>
@@ -73,6 +76,7 @@ export default function DriftCard({ drift, sprint, countdown, onBack, onRelated 
             {ENGINE[drift.source](drift)}
           </span>
         )}
+        {onRelated && (
         <button
           type="button"
           onClick={onRelated}
@@ -80,6 +84,7 @@ export default function DriftCard({ drift, sprint, countdown, onBack, onRelated 
         >
           It&apos;s related
         </button>
+        )}
         <button
           type="button"
           onClick={onBack}

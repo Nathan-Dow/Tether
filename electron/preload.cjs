@@ -59,6 +59,9 @@ contextBridge.exposeInMainWorld('tether', {
   getVoiceStatus: () => ipcRenderer.invoke('voice:status'),
   transcribe: (samples) => ipcRenderer.invoke('voice:transcribe', samples),
 
+  // Vision Sentinel: { phoneDetected, source: 'camera' | 'demo' }
+  reportPhone: (event) => ipcRenderer.send('vision:phone', event),
+
   // Calendar export for a finished sprint
   openGoogleCalendar: (id) => ipcRenderer.invoke('calendar:google', id),
   saveIcs: (id) => ipcRenderer.invoke('calendar:ics', id),

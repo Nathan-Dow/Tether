@@ -133,6 +133,29 @@ function openDashboard() {
 
 ipcMain.on('dashboard:open', openDashboard);
 
+// Vision Sentinel live preview (Ctrl+Alt+V): camera feed with what the
+// on-device models see drawn over it. Toggles open/closed.
+let visionWin = null;
+function toggleVisionPreview() {
+  if (visionWin) return visionWin.close();
+  visionWin = new BrowserWindow({
+    width: 660,
+    height: 560,
+    resizable: false,
+    alwaysOnTop: true,
+    show: false,
+    title: 'Tether — Vision Sentinel',
+    backgroundColor: '#09090b',
+    autoHideMenuBar: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+  });
+  loadPage(visionWin, 'vision.html');
+  visionWin.once('ready-to-show', () => visionWin?.show());
+  visionWin.on('closed', () => {
+    visionWin = null;
+  });
+}
+
 function createWindow() {
   const { x, y } = topCenter();
 
@@ -331,6 +354,9 @@ ipcMain.on('sprint:set', (_e, sprint) => {
   evaluator?.setSprint(sprint);
 });
 
+// Vision Sentinel: smartphone pickups from the island's webcam sampler.
+ipcMain.on('vision:phone', (_e, event) => recorder?.onPhone(event ?? {}));
+
 ipcMain.on('eval:allow', (_e, key) => {
   evaluator?.allow(key);
   recorder?.onAllow(key);
@@ -514,12 +540,13 @@ ipcMain.handle('net:get', () => ({ ...netStats }));
 
 const MAX_VOICE_SAMPLES = stt.SAMPLE_RATE * 20;
 
-// The microphone is only for Tether's own pages, and only audio.
+// Mic (voice goals) and camera (Vision Sentinel) are only for Tether's own pages.
 function allowMicOnly() {
-  const ours = (wc) => wc === win?.webContents || wc === dashWin?.webContents;
+  const ours = (wc) =>
+    wc === win?.webContents || wc === dashWin?.webContents || wc === visionWin?.webContents;
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
-    const audioOnly = !details.mediaTypes?.length || details.mediaTypes.every((t) => t === 'audio');
-    callback(permission === 'media' && audioOnly && ours(wc));
+    const avOnly = !details.mediaTypes?.length || details.mediaTypes.every((t) => t === 'audio' || t === 'video');
+    callback(permission === 'media' && avOnly && ours(wc));
   });
   session.defaultSession.setPermissionCheckHandler(
     (wc, permission) => permission === 'media' && Boolean(wc) && ours(wc),
@@ -576,6 +603,11 @@ if (!app.requestSingleInstanceLock()) {
       summon();
       win.webContents.send('shortcut', 'voice');
     });
+    // Demo failsafe: toggle "smartphone detected" without a camera.
+    globalShortcut.register('CommandOrControl+Shift+W', () => {
+      win?.webContents.send('shortcut', 'phone-demo');
+    });
+    globalShortcut.register('CommandOrControl+Alt+V', toggleVisionPreview);
   });
 
   app.on('will-quit', () => {

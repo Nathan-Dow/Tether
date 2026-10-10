@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws://127.0.0.1:5173 http://127.0.0.1:5173"
+    />
+    <title>Tether — Vision Sentinel</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #09090b; color: #e4e4e7; font: 12px ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
+      canvas { display: block; width: 100%; height: auto; }
+      #hud { display: flex; gap: 14px; align-items: center; padding: 8px 12px; border-top: 1px solid #27272a; font-family: ui-monospace, monospace; font-size: 11px; color: #a1a1aa; }
+      #verdict { font-weight: 700; letter-spacing: 0.08em; }
+      .ok { color: #34d399; }
+      .warn { color: #fbbf24; }
+      .dim { color: #71717a; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view" width="640" height="480"></canvas>
+    <div id="hud">
+      <span id="verdict" class="dim">STARTING CAMERA…</span>
+      <span id="pose"></span>
+      <span id="perf" style="margin-left: auto"></span>
+    </div>
+    <script type="module" src="/src/vision/preview.js"></script>
+  </body>
+</html>

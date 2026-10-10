@@ -38,6 +38,7 @@ const fallback = {
   transcribe: async () => ({ ok: false, error: 'missing' }),
   openGoogleCalendar: async () => ({ ok: false }),
   saveIcs: async () => ({ ok: false }),
+  reportPhone: noop,
 };
 
 export const bridge = window.tether ?? fallback;

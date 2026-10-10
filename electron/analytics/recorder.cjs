@@ -38,6 +38,7 @@ class SessionRecorder {
       verdicts: [],
       alerts: [],
       allowed: [],
+      phone: [], // Vision Sentinel: physical drift { start, end, source, cause }
     };
     this.timer = setInterval(() => this.save(), AUTOSAVE_MS);
   }
@@ -52,6 +53,8 @@ class SessionRecorder {
     s.endedAt = s.durationMin ? Math.min(now, s.startedAt + s.durationMin * 60_000) : now;
     const last = s.segments.at(-1);
     if (last) last.end = Math.max(last.end, s.endedAt);
+    const pickup = s.phone?.at(-1);
+    if (pickup && pickup.end == null) pickup.end = s.endedAt;
     this.store.save(s);
     return s;
   }
@@ -94,6 +97,17 @@ class SessionRecorder {
 
   onAlert(entry) {
     this.session?.alerts.push({ at: entry.at, key: entry.key });
+  }
+
+  // Vision Sentinel: the webcam (or the demo hotkey) saw a phone come up or go away.
+  // cause: 'phone' (in frame) | 'head-down' (looking down a while: phone in lap?)
+  onPhone({ phoneDetected, source = 'camera', cause = 'phone' }, now = Date.now()) {
+    const s = this.session;
+    if (!s) return;
+    s.phone ??= [];
+    const open = s.phone.at(-1);
+    if (phoneDetected && !(open && open.end == null)) s.phone.push({ start: now, end: null, source, cause });
+    else if (!phoneDetected && open && open.end == null) open.end = now;
   }
 
   onAllow(key) {

@@ -14,9 +14,11 @@
     "eval": "node scripts/eval.cjs",
     "test": "node --test test/*.test.cjs",
     "postinstall": "node node_modules/electron/install.js",
-    "setup:voice": "node scripts/setup-voice.cjs"
+    "setup:voice": "node scripts/setup-voice.cjs",
+    "setup:vision": "node scripts/setup-vision.cjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.0",
     "framer-motion": "^14.0.0",
     "lucide-react": "^1.54.0",
     "react": "^19.3.0",
