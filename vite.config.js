@@ -8,11 +8,12 @@ export default defineConfig({
   // Relative asset paths so the built bundle loads over file:// inside Electron.
   base: './',
   build: {
-    // Two pages: the island (index.html) and the dashboard window.
+    // Three pages: the island, the dashboard and the Vision Sentinel preview.
     rollupOptions: {
       input: {
         island: fileURLToPath(new URL('./index.html', import.meta.url)),
         dashboard: fileURLToPath(new URL('./dashboard.html', import.meta.url)),
+        vision: fileURLToPath(new URL('./vision.html', import.meta.url)),
       },
     },
   },

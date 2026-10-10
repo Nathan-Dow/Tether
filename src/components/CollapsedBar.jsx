@@ -27,6 +27,9 @@ const VISION = {
   starting: { Icon: Eye, text: 'VISION', cls: 'text-zinc-500 animate-pulse', title: 'Vision Sentinel: starting camera' },
   locked: { Icon: Eye, text: 'LOCKED', cls: 'text-emerald-400/80', title: 'VISION SENTINEL: LOCKED' },
   away: { Icon: EyeOff, text: 'AWAY', cls: 'text-zinc-500', title: 'Vision Sentinel: no one at the desk' },
+  down: { Icon: Eye, text: 'DOWN', cls: 'text-amber-300/80', title: 'Vision Sentinel: looking down' },
+  side: { Icon: Eye, text: 'ASIDE', cls: 'text-zinc-400', title: 'Vision Sentinel: looking away from the screen' },
+  noface: { Icon: EyeOff, text: 'NO FACE', cls: 'text-zinc-500', title: 'Vision Sentinel: someone is there but no face is visible' },
   unavailable: { Icon: EyeOff, text: 'NO CAM', cls: 'text-zinc-600', title: 'Vision Sentinel: camera unavailable' },
 };
 

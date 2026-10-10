@@ -251,7 +251,9 @@ function phoneEpisodesOf(session, end) {
       start: p.start,
       end: stop,
       durationMs: Math.max(0, stop - p.start),
-      sites: [p.source === 'demo' ? 'Smartphone (demo)' : 'Smartphone'],
+      sites: [
+        p.source === 'demo' ? 'Smartphone (demo)' : p.cause === 'head-down' ? 'Head down (phone in lap?)' : 'Smartphone',
+      ],
       returnedToGoal: p.end != null,
     };
   });

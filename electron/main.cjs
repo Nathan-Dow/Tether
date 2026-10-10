@@ -133,6 +133,29 @@ function openDashboard() {
 
 ipcMain.on('dashboard:open', openDashboard);
 
+// Vision Sentinel live preview (Ctrl+Alt+V): camera feed with what the
+// on-device models see drawn over it. Toggles open/closed.
+let visionWin = null;
+function toggleVisionPreview() {
+  if (visionWin) return visionWin.close();
+  visionWin = new BrowserWindow({
+    width: 660,
+    height: 560,
+    resizable: false,
+    alwaysOnTop: true,
+    show: false,
+    title: 'Tether — Vision Sentinel',
+    backgroundColor: '#09090b',
+    autoHideMenuBar: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+  });
+  loadPage(visionWin, 'vision.html');
+  visionWin.once('ready-to-show', () => visionWin?.show());
+  visionWin.on('closed', () => {
+    visionWin = null;
+  });
+}
+
 function createWindow() {
   const { x, y } = topCenter();
 
@@ -519,7 +542,8 @@ const MAX_VOICE_SAMPLES = stt.SAMPLE_RATE * 20;
 
 // Mic (voice goals) and camera (Vision Sentinel) are only for Tether's own pages.
 function allowMicOnly() {
-  const ours = (wc) => wc === win?.webContents || wc === dashWin?.webContents;
+  const ours = (wc) =>
+    wc === win?.webContents || wc === dashWin?.webContents || wc === visionWin?.webContents;
   session.defaultSession.setPermissionRequestHandler((wc, permission, callback, details) => {
     const avOnly = !details.mediaTypes?.length || details.mediaTypes.every((t) => t === 'audio' || t === 'video');
     callback(permission === 'media' && avOnly && ours(wc));
@@ -583,6 +607,7 @@ if (!app.requestSingleInstanceLock()) {
     globalShortcut.register('CommandOrControl+Shift+W', () => {
       win?.webContents.send('shortcut', 'phone-demo');
     });
+    globalShortcut.register('CommandOrControl+Alt+V', toggleVisionPreview);
   });
 
   app.on('will-quit', () => {

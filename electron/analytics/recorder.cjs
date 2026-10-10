@@ -38,7 +38,7 @@ class SessionRecorder {
       verdicts: [],
       alerts: [],
       allowed: [],
-      phone: [], // Vision Sentinel: smartphone pickups { start, end, source }
+      phone: [], // Vision Sentinel: physical drift { start, end, source, cause }
     };
     this.timer = setInterval(() => this.save(), AUTOSAVE_MS);
   }
@@ -100,12 +100,13 @@ class SessionRecorder {
   }
 
   // Vision Sentinel: the webcam (or the demo hotkey) saw a phone come up or go away.
-  onPhone({ phoneDetected, source = 'camera' }, now = Date.now()) {
+  // cause: 'phone' (in frame) | 'head-down' (looking down a while: phone in lap?)
+  onPhone({ phoneDetected, source = 'camera', cause = 'phone' }, now = Date.now()) {
     const s = this.session;
     if (!s) return;
     s.phone ??= [];
     const open = s.phone.at(-1);
-    if (phoneDetected && !(open && open.end == null)) s.phone.push({ start: now, end: null, source });
+    if (phoneDetected && !(open && open.end == null)) s.phone.push({ start: now, end: null, source, cause });
     else if (!phoneDetected && open && open.end == null) open.end = now;
   }
 

@@ -1,57 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
+import { analyze, describe, GazeTracker, H, loadVision, PERSON_MIN, PHONE_MIN, W } from '../lib/vision.js';
 
 // Vision Sentinel: while a sprint runs, sample one 320x240 webcam frame every
-// SAMPLE_MS and run an on-device object detector (MediaPipe EfficientDet-Lite0,
-// COCO classes) for "person" (present at the desk) and "cell phone" (the
-// classic site-blocker bypass). Frames never leave the renderer.
+// SAMPLE_MS and check, on-device, that you're at the desk, whether a phone is
+// in frame, and where your head is pointed. Frames never leave the renderer.
 //
-// status: 'off' | 'starting' | 'locked' | 'away' | 'unavailable'
+// status: 'off' | 'starting' | 'locked' | 'away' | 'down' | 'side' | 'noface' | 'unavailable'
+// cause (when physical drift is on): 'phone' | 'head-down'
 const SAMPLE_MS = 7000;
 const FIRST_SAMPLE_MS = 1500;
-const PERSON_MIN = 0.5;
-const PHONE_MIN = 0.4;
-const W = 320;
-const H = 240;
-
-const asset = (p) => new URL(p, document.baseURI).href;
-
-let detectorPromise = null;
-function loadDetector() {
-  detectorPromise ??= import('@mediapipe/tasks-vision').then(async ({ FilesetResolver, ObjectDetector }) => {
-    const fileset = await FilesetResolver.forVisionTasks(asset('vision/wasm'));
-    return ObjectDetector.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: asset('vision/efficientdet_lite0.tflite'), delegate: 'CPU' },
-      runningMode: 'IMAGE',
-      scoreThreshold: 0.3,
-      maxResults: 5,
-      categoryAllowlist: ['person', 'cell phone'],
-    });
-  });
-  detectorPromise.catch(() => {
-    detectorPromise = null; // let the next sprint retry
-  });
-  return detectorPromise;
-}
-
-function best(result, name) {
-  let score = 0;
-  for (const d of result?.detections ?? []) {
-    for (const c of d.categories) if (c.categoryName === name) score = Math.max(score, c.score);
-  }
-  return score;
-}
+const DOWN_SAMPLES = 2; // head down this many samples in a row (~14 s) = phone in lap?
 
 export function useVisionSentinel({ active }) {
   const [status, setStatus] = useState('off');
-  const [cameraPhone, setCameraPhone] = useState(false);
+  const [cameraCause, setCameraCause] = useState(null);
   const [demoPhone, setDemoPhone] = useState(false);
-  const [last, setLast] = useState(null); // { person, phone, at } scores for debugging
 
   useEffect(() => {
     if (!active) return undefined;
     let cancelled = false;
     let stream = null;
     let timer = null;
+    let downStreak = 0;
+    const gaze = new GazeTracker();
     const video = document.createElement('video');
     video.muted = true;
     video.playsInline = true;
@@ -63,8 +34,8 @@ export function useVisionSentinel({ active }) {
     setStatus('starting');
     (async () => {
       try {
-        const [detector, s] = await Promise.all([
-          loadDetector(),
+        const [models, s] = await Promise.all([
+          loadVision(),
           navigator.mediaDevices.getUserMedia({ video: { width: W, height: H, frameRate: 5 }, audio: false }),
         ]);
         stream = s;
@@ -73,14 +44,16 @@ export function useVisionSentinel({ active }) {
         await video.play();
 
         const sample = () => {
-          if (cancelled || video.readyState < 2) return;
+          if (cancelled) return;
+          if (video.readyState < 2) return console.warn('[vision] camera has no frame yet');
           ctx.drawImage(video, 0, 0, W, H);
-          const result = detector.detect(canvas);
-          const person = best(result, 'person');
-          const phone = best(result, 'cell phone');
-          setLast({ person, phone, at: Date.now() });
-          setStatus(person >= PERSON_MIN ? 'locked' : 'away');
-          setCameraPhone(phone >= PHONE_MIN);
+          const r = analyze(models, canvas);
+          const g = r.person >= PERSON_MIN || r.pose ? gaze.update(r.pose) : 'away';
+          console.warn('[vision]', describe(r, g));
+
+          downStreak = g === 'down' ? downStreak + 1 : 0;
+          setStatus(g === 'screen' ? 'locked' : g);
+          setCameraCause(r.phone >= PHONE_MIN ? 'phone' : downStreak >= DOWN_SAMPLES ? 'head-down' : null);
         };
         timer = setTimeout(function tick() {
           try {
@@ -102,7 +75,7 @@ export function useVisionSentinel({ active }) {
       stream?.getTracks().forEach((t) => t.stop());
       video.srcObject = null;
       setStatus('off');
-      setCameraPhone(false);
+      setCameraCause(null);
     };
   }, [active]);
 
@@ -110,11 +83,12 @@ export function useVisionSentinel({ active }) {
   const toggleDemo = useCallback(() => setDemoPhone((on) => !on), []);
   const clearDemo = useCallback(() => setDemoPhone(false), []);
 
+  const cause = demoPhone ? 'phone' : cameraCause;
   return {
     status,
-    last,
     demo: demoPhone,
-    phoneDetected: demoPhone || cameraPhone,
+    phoneDetected: Boolean(cause), // physical drift of either kind
+    cause,
     source: demoPhone ? 'demo' : 'camera',
     toggleDemo,
     clearDemo,

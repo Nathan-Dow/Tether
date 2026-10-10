@@ -16,18 +16,22 @@ test('phone pickups land in the friction ledger as physical drift', () => {
   rec.onPhone({ phoneDetected: true, source: 'camera' }, t0 + 5 * MIN);
   rec.onPhone({ phoneDetected: true, source: 'camera' }, t0 + 6 * MIN); // still holding: no new pickup
   rec.onPhone({ phoneDetected: false }, t0 + 7 * MIN);
+  rec.onPhone({ phoneDetected: true, source: 'camera', cause: 'head-down' }, t0 + 12 * MIN);
+  rec.onPhone({ phoneDetected: false }, t0 + 13 * MIN);
   rec.onPhone({ phoneDetected: true, source: 'demo' }, t0 + 20 * MIN); // never put down
 
   const session = rec.finish(t0 + 25 * MIN);
   assert.deepEqual(session.phone, [
-    { start: t0 + 5 * MIN, end: t0 + 7 * MIN, source: 'camera' },
-    { start: t0 + 20 * MIN, end: t0 + 25 * MIN, source: 'demo' },
+    { start: t0 + 5 * MIN, end: t0 + 7 * MIN, source: 'camera', cause: 'phone' },
+    { start: t0 + 12 * MIN, end: t0 + 13 * MIN, source: 'camera', cause: 'head-down' },
+    { start: t0 + 20 * MIN, end: t0 + 25 * MIN, source: 'demo', cause: 'phone' },
   ]);
 
   const physical = sessionReport(session).episodes.filter((e) => e.kind === 'physical');
-  assert.equal(physical.length, 2);
+  assert.equal(physical.length, 3);
   assert.equal(physical[0].durationMs, 2 * MIN);
-  assert.deepEqual(physical[1].sites, ['Smartphone (demo)']);
+  assert.deepEqual(physical[1].sites, ['Head down (phone in lap?)']);
+  assert.deepEqual(physical[2].sites, ['Smartphone (demo)']);
 });
 
 test('phone events outside a sprint are ignored', () => {

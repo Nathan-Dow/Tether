@@ -89,9 +89,9 @@ export default function App() {
   const vision = useVisionSentinel({ active: Boolean(activeSprint) });
   const toggleDemoRef = useRef(vision.toggleDemo);
   toggleDemoRef.current = vision.toggleDemo;
-  const { phoneDetected, source: phoneSource, clearDemo } = vision;
+  const { phoneDetected, cause: phoneCause, source: phoneSource, clearDemo } = vision;
   useEffect(() => {
-    bridge.reportPhone({ phoneDetected, source: phoneSource });
+    bridge.reportPhone({ phoneDetected, source: phoneSource, cause: phoneCause ?? undefined });
     if (!phoneDetected) {
       dispatch({ type: 'PHONE_DOWN' });
       return;
@@ -99,15 +99,18 @@ export default function App() {
     dispatch({
       type: 'DRIFT',
       drift: {
-        app: 'Smartphone detected',
-        confidence: phoneSource === 'demo' ? 0.92 : 0.8,
+        app: phoneCause === 'head-down' ? 'Head down: phone in your lap?' : 'Smartphone detected',
+        confidence: phoneSource === 'demo' ? 0.92 : phoneCause === 'head-down' ? 0.65 : 0.8,
         nudge: 'Return attention to sprint.',
-        reason: 'Vision Sentinel saw a phone in frame',
+        reason:
+          phoneCause === 'head-down'
+            ? 'Vision Sentinel: head pitched down for ~14 s'
+            : 'Vision Sentinel saw a phone in frame',
         source: 'vision',
         demo: phoneSource === 'demo',
       },
     });
-  }, [phoneDetected]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [phoneCause]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Local AI status (Ollama ready / offline -> rules fallback).
   useEffect(() => {
